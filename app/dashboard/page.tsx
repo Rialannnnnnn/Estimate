@@ -10,7 +10,7 @@ import { ProjectCard } from '@/components/project-card'
 import { TemplateSelector } from '@/components/template-selector'
 import { NeedsGenerator } from '@/components/needs-generator'
 import { Input } from '@/components/ui/input'
-import { ArrowRight, Plus } from 'lucide-react'
+import { ArrowRight, LogOut, Plus } from 'lucide-react'
 import type { Material } from '@/lib/types'
 import type { TemplateType } from '@/lib/templates'
 import { templates } from '@/lib/templates'
@@ -39,6 +39,7 @@ export default function DashboardPage() {
   const [criteria, setCriteria] = useState('')
   const [generatedNeeds, setGeneratedNeeds] = useState<Material[]>([])
   const [creatingProject, setCreatingProject] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   useEffect(() => {
     const getUser = async () => {
@@ -152,6 +153,17 @@ export default function DashboardPage() {
     }
   }
 
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+    router.refresh()
+  }
+
+  const fullName = user?.user_metadata?.full_name
+  const displayName =
+    typeof fullName === 'string' && fullName.trim() ? fullName.trim() : (user?.email ?? 'Pengguna')
+
   if (loading) {
     return (
       <div className="min-h-screen bg-brand-blue text-white flex items-center justify-center">
@@ -176,7 +188,21 @@ export default function DashboardPage() {
               <h1 className="text-display text-4xl md:text-5xl text-primary">EstiMate</h1>
               <p className="text-label text-muted-foreground">Ruang tenang untuk mengatur kebutuhanmu</p>
             </div>
-            <span className="text-label text-muted-foreground">Mode pribadi</span>
+            <div className="flex items-center gap-4">
+              <div className="hidden text-right sm:block">
+                <span className="text-label block text-muted-foreground">Masuk sebagai</span>
+                <span className="text-sm font-semibold text-foreground">{displayName}</span>
+              </div>
+              <Button
+                onClick={() => void handleLogout()}
+                disabled={loggingOut}
+                variant="outline"
+                className="rounded-full border border-primary/20 bg-card font-semibold text-primary hover:bg-secondary"
+              >
+                <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
+                {loggingOut ? 'Keluar...' : 'Logout'}
+              </Button>
+            </div>
           </div>
         </div>
       </header>

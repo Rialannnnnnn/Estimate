@@ -1,16 +1,41 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+function redirectWithCookies(request: NextRequest, sessionResponse: NextResponse, pathname: string) {
+  const url = request.nextUrl.clone()
+  url.pathname = pathname
+  url.search = ''
+  const redirectResponse = NextResponse.redirect(url)
+  sessionResponse.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie))
+  return redirectResponse
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const { pathname } = request.nextUrl
+  const isAuthFormRoute = pathname === '/auth/login' || pathname === '/auth/register'
+  const isPublicRoute = isAuthFormRoute || pathname === '/auth/callback'
+  const isProtectedRoute = !isPublicRoute
+
+  // Without Supabase config the session cannot be checked: keep the auth pages
+  // reachable instead of crashing every request, and keep everything else locked.
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Supabase env vars are missing; skipping session refresh.')
+    return isProtectedRoute
+      ? redirectWithCookies(request, supabaseResponse, '/auth/login')
+      : supabaseResponse
+  }
+
   // With Fluid compute, don't put this client in a global environment
   // variable. Always create a new one on each request.
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -41,15 +66,12 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (
-    // if the user is not logged in and the app path, in this case, /protected, is accessed, redirect to the login page
-    request.nextUrl.pathname.startsWith('/protected') &&
-    !user
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
+  if (isProtectedRoute && !user) {
+    return redirectWithCookies(request, supabaseResponse, '/auth/login')
+  }
+
+  if (isAuthFormRoute && user) {
+    return redirectWithCookies(request, supabaseResponse, '/dashboard')
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
