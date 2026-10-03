@@ -1,6 +1,15 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+function redirectWithCookies(request: NextRequest, sessionResponse: NextResponse, pathname: string) {
+  const url = request.nextUrl.clone()
+  url.pathname = pathname
+  url.search = ''
+  const redirectResponse = NextResponse.redirect(url)
+  sessionResponse.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie))
+  return redirectResponse
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -41,15 +50,16 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (
-    // if the user is not logged in and the app path, in this case, /protected, is accessed, redirect to the login page
-    request.nextUrl.pathname.startsWith('/protected') &&
-    !user
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
+  const { pathname } = request.nextUrl
+  const isProtectedRoute = pathname === '/dashboard' || pathname.startsWith('/dashboard/')
+  const isAuthFormRoute = pathname === '/auth/login' || pathname === '/auth/register'
+
+  if (isProtectedRoute && !user) {
+    return redirectWithCookies(request, supabaseResponse, '/auth/login')
+  }
+
+  if (isAuthFormRoute && user) {
+    return redirectWithCookies(request, supabaseResponse, '/dashboard')
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
