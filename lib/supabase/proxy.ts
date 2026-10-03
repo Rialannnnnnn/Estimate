@@ -18,11 +18,12 @@ export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   const { pathname } = request.nextUrl
-  const isProtectedRoute = pathname === '/dashboard' || pathname.startsWith('/dashboard/')
   const isAuthFormRoute = pathname === '/auth/login' || pathname === '/auth/register'
+  const isPublicRoute = isAuthFormRoute || pathname === '/auth/callback'
+  const isProtectedRoute = !isPublicRoute
 
-  // Without Supabase config the session cannot be checked: keep public pages
-  // reachable instead of crashing every request, and keep the dashboard locked.
+  // Without Supabase config the session cannot be checked: keep the auth pages
+  // reachable instead of crashing every request, and keep everything else locked.
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn('Supabase env vars are missing; skipping session refresh.')
     return isProtectedRoute
