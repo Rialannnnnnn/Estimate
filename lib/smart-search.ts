@@ -7,15 +7,66 @@ export interface SearchableMaterial {
   is_purchased: boolean
 }
 
-interface ParsedQuery {
+export interface ParsedQuery {
   terms: string[]
   purchased: boolean | null
   maxPrice: number | null
   minPrice: number | null
+  maxInclusive: boolean
+  minInclusive: boolean
   sort: 'asc' | 'desc' | null
 }
 
-const FILLER_WORDS = new Set(['yang', 'dan', 'barang', 'kebutuhan', 'item', 'harga', 'dengan', 'semua'])
+const FILLER_WORDS = new Set([
+  'yang', 'yg', 'dong', 'donk', 'coba', 'cari', 'carikan', 'tampilkan', 'tampilin', 'tunjukkan', 'lihat', 'liat',
+  'kebutuhan', 'barang', 'item', 'harga', 'aku', 'saya', 'gue', 'gw', 'dengan', 'dgn', 'dan', 'semua', 'mau',
+  'tolong', 'aja', 'saja', 'dari', 'ke', 'paling', 'urutkan', 'urut', 'status', 'rp', 'ribu', 'rb', 'juta', 'jt',
+  'nya', 'ya', 'yah', 'deh', 'sih', 'untuk', 'buat', 'di', 'yang',
+])
+
+const WORD_ALIASES: Record<string, string> = {
+  blm: 'belum',
+  blum: 'belum',
+  belom: 'belum',
+  udh: 'sudah',
+  udah: 'sudah',
+  sdh: 'sudah',
+  dah: 'sudah',
+  tlh: 'telah',
+  beli: 'dibeli',
+  kebeli: 'dibeli',
+  dibeliin: 'dibeli',
+  dibelikan: 'dibeli',
+  terbeli: 'dibeli',
+  dbeli: 'dibeli',
+  dibwah: 'dibawah',
+  dbawah: 'dibawah',
+  dibawh: 'dibawah',
+  dbwh: 'dibawah',
+  dibwh: 'dibawah',
+  diats: 'diatas',
+  datas: 'diatas',
+  dats: 'diatas',
+  krg: 'kurang',
+  kurg: 'kurang',
+  lbh: 'lebih',
+  maks: 'maksimal',
+  max: 'maksimal',
+  maximal: 'maksimal',
+  maksimum: 'maksimal',
+  min: 'minimal',
+  minimum: 'minimal',
+  mahall: 'mahal',
+  murahh: 'murah',
+  ribuan: 'ribu',
+  rebu: 'ribu',
+}
+
+// Only long, distinctive keywords get edit-distance matching so short product names are never rewritten.
+const FUZZY_KEYWORDS = [
+  'dibawah', 'diatas', 'termurah', 'termahal', 'tertinggi', 'terendah', 'maksimal', 'minimal', 'kurang', 'lebih',
+  'belum', 'sudah', 'dibeli', 'urutkan',
+]
 
 const UNIT_MULTIPLIERS: Record<string, number> = {
   ribu: 1_000,
@@ -27,10 +78,62 @@ const UNIT_MULTIPLIERS: Record<string, number> = {
 }
 
 const PRICE_PATTERN =
-  /(di\s*bawah|kurang\s*dari|maks(?:imal)?|<=?|di\s*atas|lebih\s*dari|min(?:imal)?|>=?)\s*(?:rp\.?\s*)?(\d+(?:[.,]\d+)*)\s*(ribu|rb|k|juta|jt|m)?(?![a-z])/
+  /(?:^|\s)(dibawah|kurang dari|kurang|maksimal|<=|<|diatas|lebih dari|lebih|minimal|>=|>)\s*(?:rp\s*)?(\d+(?:[.,]\d+)*)\s*(ribu|rb|k|juta|jt|m)?(?=\s|$)/
 
 // Bare numbers below this are read as thousands ("dibawah 100" = Rp100.000), matching how Indonesian shoppers abbreviate prices.
 const IMPLICIT_THOUSANDS_LIMIT = 1_000
+
+const SORT_DESC_PATTERN = /(paling mahal|termahal|harga tertinggi|tertinggi|urutkan dari mahal|dari mahal|mahal ke murah)/g
+const SORT_ASC_PATTERN = /(paling murah|termurah|harga terendah|terendah|urutkan dari murah|dari murah|murah ke mahal)/g
+const NOT_PURCHASED_PATTERN = /belum (?:sudah |di)?dibeli/g
+const PURCHASED_PATTERN = /(?:sudah|telah) dibeli/g
+
+function editDistance(a: string, b: string): number {
+  if (Math.abs(a.length - b.length) > 1) return 2
+  const previous = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    let diagonal = previous[0]
+    previous[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const above = previous[j]
+      previous[j] = Math.min(previous[j] + 1, previous[j - 1] + 1, diagonal + (a[i - 1] === b[j - 1] ? 0 : 1))
+      diagonal = above
+    }
+  }
+  return previous[b.length]
+}
+
+function canonicalizeWord(word: string): string {
+  if (WORD_ALIASES[word]) return WORD_ALIASES[word]
+  if (/\d/.test(word) || word.length < 5) return word
+
+  const collapsed = word.replace(/([a-z])\1+/g, '$1')
+  if (WORD_ALIASES[collapsed]) return WORD_ALIASES[collapsed]
+  if (FUZZY_KEYWORDS.includes(collapsed)) return collapsed
+
+  for (const keyword of FUZZY_KEYWORDS) {
+    if (keyword.length >= 6 && editDistance(collapsed, keyword) <= 1) return keyword
+  }
+  return word
+}
+
+function normalizeQuery(query: string): string {
+  const spaced = query
+    .toLocaleLowerCase('id')
+    .replace(/(^|[^a-z])rp\.?(?=\s|\d|$)/g, '$1 rp ')
+    .replace(/(<=|>=|<|>)/g, ' $1 ')
+    .replace(/([a-z])(\d)/g, '$1 $2')
+    .replace(/[^\p{L}\p{N}<>=.,\s]/gu, ' ')
+    .replace(/(?<!\d)[.,]|[.,](?!\d)/g, ' ')
+
+  return spaced
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(canonicalizeWord)
+    .join(' ')
+    .replace(/\bdi (bawah|atas)\b/g, 'di$1')
+    .replace(/\bbelum di dibeli\b/g, 'belum dibeli')
+}
 
 function parseAmount(rawNumber: string, unit: string | undefined): number | null {
   if (unit) {
@@ -49,42 +152,58 @@ function parseAmount(rawNumber: string, unit: string | undefined): number | null
 }
 
 export function parseSmartQuery(query: string): ParsedQuery {
-  let text = query.toLocaleLowerCase('id').replace(/\s+/g, ' ').trim()
-  const parsed: ParsedQuery = { terms: [], purchased: null, maxPrice: null, minPrice: null, sort: null }
+  let text = ` ${normalizeQuery(query)} `
+  const parsed: ParsedQuery = {
+    terms: [],
+    purchased: null,
+    maxPrice: null,
+    minPrice: null,
+    maxInclusive: false,
+    minInclusive: false,
+    sort: null,
+  }
 
-  if (/(paling\s+mahal|termahal)/.test(text)) {
+  if (SORT_DESC_PATTERN.test(text)) {
     parsed.sort = 'desc'
-    text = text.replace(/(paling\s+mahal|termahal)/g, ' ')
-  } else if (/(paling\s+murah|termurah)/.test(text)) {
+    text = text.replace(SORT_DESC_PATTERN, ' ')
+  } else if (SORT_ASC_PATTERN.test(text)) {
     parsed.sort = 'asc'
-    text = text.replace(/(paling\s+murah|termurah)/g, ' ')
+    text = text.replace(SORT_ASC_PATTERN, ' ')
   }
+  SORT_DESC_PATTERN.lastIndex = 0
+  SORT_ASC_PATTERN.lastIndex = 0
 
-  if (/belum\s+(di)?beli/.test(text)) {
+  if (NOT_PURCHASED_PATTERN.test(text)) {
     parsed.purchased = false
-    text = text.replace(/belum\s+(di)?beli/g, ' ')
-  } else if (/(sudah|telah)\s+(di)?beli/.test(text)) {
+    text = text.replace(NOT_PURCHASED_PATTERN, ' ')
+  } else if (PURCHASED_PATTERN.test(text)) {
     parsed.purchased = true
-    text = text.replace(/(sudah|telah)\s+(di)?beli/g, ' ')
+    text = text.replace(PURCHASED_PATTERN, ' ')
   }
+  NOT_PURCHASED_PATTERN.lastIndex = 0
+  PURCHASED_PATTERN.lastIndex = 0
 
   let priceMatch = text.match(PRICE_PATTERN)
   while (priceMatch) {
     const [fullMatch, operator, rawNumber, unit] = priceMatch
     const amount = parseAmount(rawNumber, unit)
     if (amount !== null) {
-      const isUpperBound = /bawah|kurang|maks|</.test(operator)
-      if (isUpperBound) parsed.maxPrice = amount
-      else parsed.minPrice = amount
+      const isInclusive = operator === 'maksimal' || operator === 'minimal' || operator.includes('=')
+      if (/bawah|kurang|maksimal|</.test(operator)) {
+        parsed.maxPrice = amount
+        parsed.maxInclusive = isInclusive
+      } else {
+        parsed.minPrice = amount
+        parsed.minInclusive = isInclusive
+      }
     }
     text = text.replace(fullMatch, ' ')
     priceMatch = text.match(PRICE_PATTERN)
   }
 
   parsed.terms = text
-    .split(' ')
-    .map((word) => word.trim())
-    .filter((word) => word.length > 0 && !FILLER_WORDS.has(word))
+    .split(/\s+/)
+    .filter((word) => word.length > 0 && !FILLER_WORDS.has(word) && !/^[<>=.,]+$/.test(word))
 
   return parsed
 }
@@ -98,14 +217,14 @@ export function getMaterialPrice(material: SearchableMaterial): number {
 export function smartFilterMaterials<T extends SearchableMaterial>(materials: T[], query: string): T[] {
   if (!query.trim()) return materials
 
-  const { terms, purchased, maxPrice, minPrice, sort } = parseSmartQuery(query)
+  const { terms, purchased, maxPrice, minPrice, maxInclusive, minInclusive, sort } = parseSmartQuery(query)
 
   const filtered = materials.filter((material) => {
     if (purchased !== null && material.is_purchased !== purchased) return false
 
     const price = getMaterialPrice(material)
-    if (maxPrice !== null && price >= maxPrice) return false
-    if (minPrice !== null && price <= minPrice) return false
+    if (maxPrice !== null && (maxInclusive ? price > maxPrice : price >= maxPrice)) return false
+    if (minPrice !== null && (minInclusive ? price < minPrice : price <= minPrice)) return false
 
     if (terms.length > 0) {
       const haystack = `${material.name} ${material.category ?? ''}`.toLocaleLowerCase('id')

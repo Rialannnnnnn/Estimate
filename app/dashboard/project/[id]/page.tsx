@@ -381,7 +381,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                   Cari kebutuhan
                 </label>
                 <Search
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60"
+                  className="pointer-events-none absolute left-3 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-brand-blue"
                   aria-hidden="true"
                 />
                 <Input
@@ -392,18 +392,21 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                   placeholder="Cari kebutuhan..."
                   autoComplete="off"
                   aria-describedby="material-search-hint"
-                  className="h-11 border-white/30 bg-white/10 pl-10 text-white placeholder:text-white/50"
+                  className="h-12 border-2 border-brand-light bg-brand-light pl-11 text-base font-medium text-brand-dark shadow-sm placeholder:text-brand-dark/70 focus-visible:border-brand-light focus-visible:ring-4 focus-visible:ring-brand-light/40 dark:bg-brand-light dark:text-brand-dark"
                 />
               </div>
-              <p id="material-search-hint" className="text-sm text-white/60">
-                Contoh: makanan belum dibeli, di bawah 100 ribu, paling mahal
+              <p id="material-search-hint" className="text-sm leading-relaxed text-white/85">
+                Contoh: makanan belum dibeli · di bawah 100 ribu · paling mahal
               </p>
             </div>
           )}
 
           {materials.length > 0 && filteredMaterials.length === 0 ? (
-            <div className="border-2 border-white/20 bg-card/50 p-8 text-center" role="status">
-              <p className="text-white/60">Tidak ada kebutuhan yang cocok dengan pencarianmu.</p>
+            <div className="flex flex-col gap-2 border-2 border-white/40 bg-card p-8 text-center" role="status">
+              <p className="text-base font-semibold text-card-foreground">Tidak ada kebutuhan yang cocok.</p>
+              <p className="text-sm leading-relaxed text-card-foreground/85 text-pretty">
+                Coba gunakan nama barang, kategori, status pembelian, atau rentang harga.
+              </p>
             </div>
           ) : materials.length === 0 ? (
             <div className="border-2 border-white/20 bg-card/50 p-8 text-center">
