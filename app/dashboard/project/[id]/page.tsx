@@ -22,8 +22,10 @@ import {
   Trash2,
   Edit2,
   Check,
+  Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { smartFilterMaterials } from '@/lib/smart-search'
 
 interface ProjectPageProps {
   params: Promise<{ id: string }>
@@ -61,6 +63,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const [isEditingBudget, setIsEditingBudget] = useState(false)
   const [editBudget, setEditBudget] = useState('')
   const [showAddMaterial, setShowAddMaterial] = useState(false)
+  const [materialQuery, setMaterialQuery] = useState('')
 
   useEffect(() => {
     const loadProject = async () => {
@@ -225,6 +228,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const budgetStatus = getBudgetStatus(currentTotal, project.budget)
   const estimatedTotal = materials.reduce((sum, m) => sum + m.quantity * m.unit_price, 0)
   const purchasedCount = materials.filter(m => m.is_purchased).length
+  const filteredMaterials = smartFilterMaterials(materials, materialQuery)
 
   return (
     <main className="min-h-screen bg-brand-blue text-white">
@@ -370,7 +374,41 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             </div>
           )}
 
-          {materials.length === 0 ? (
+          {materials.length > 0 && (
+            <div className="mb-6 flex flex-col gap-2 md:max-w-md">
+              <div className="relative">
+                <label htmlFor="material-search" className="sr-only">
+                  Cari kebutuhan
+                </label>
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-brand-blue"
+                  aria-hidden="true"
+                />
+                <Input
+                  id="material-search"
+                  type="search"
+                  value={materialQuery}
+                  onChange={(e) => setMaterialQuery(e.target.value)}
+                  placeholder="Cari kebutuhan..."
+                  autoComplete="off"
+                  aria-describedby="material-search-hint"
+                  className="h-12 border-2 border-brand-light bg-brand-light pl-11 text-base font-medium text-brand-dark shadow-sm placeholder:text-brand-dark/70 focus-visible:border-brand-light focus-visible:ring-4 focus-visible:ring-brand-light/40 dark:bg-brand-light dark:text-brand-dark"
+                />
+              </div>
+              <p id="material-search-hint" className="text-sm leading-relaxed text-white/85">
+                Contoh: makanan belum dibeli · di bawah 100 ribu · paling mahal
+              </p>
+            </div>
+          )}
+
+          {materials.length > 0 && filteredMaterials.length === 0 ? (
+            <div className="flex flex-col gap-2 border-2 border-white/40 bg-card p-8 text-center" role="status">
+              <p className="text-base font-semibold text-card-foreground">Tidak ada kebutuhan yang cocok.</p>
+              <p className="text-sm leading-relaxed text-card-foreground/85 text-pretty">
+                Coba gunakan nama barang, kategori, status pembelian, atau rentang harga.
+              </p>
+            </div>
+          ) : materials.length === 0 ? (
             <div className="border-2 border-white/20 bg-card/50 p-8 text-center">
               <p className="text-white/60 mb-4">Belum ada kebutuhan yang ditambahkan</p>
               <Button
@@ -382,7 +420,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              {materials.map((material) => (
+              {filteredMaterials.map((material) => (
                 <MaterialItem
                   key={material.id}
                   material={{
