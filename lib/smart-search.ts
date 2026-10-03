@@ -23,21 +23,29 @@ const UNIT_MULTIPLIERS: Record<string, number> = {
   k: 1_000,
   juta: 1_000_000,
   jt: 1_000_000,
+  m: 1_000_000,
 }
 
 const PRICE_PATTERN =
-  /(di\s*bawah|dibawah|kurang\s+dari|maks(?:imal)?|<|di\s*atas|diatas|lebih\s+dari|min(?:imal)?|>)\s*(?:rp\.?\s*)?(\d+(?:[.,]\d+)*)\s*(ribu|rb|k|juta|jt)?\b/
+  /(di\s*bawah|kurang\s*dari|maks(?:imal)?|<=?|di\s*atas|lebih\s*dari|min(?:imal)?|>=?)\s*(?:rp\.?\s*)?(\d+(?:[.,]\d+)*)\s*(ribu|rb|k|juta|jt|m)?(?![a-z])/
+
+// Bare numbers below this are read as thousands ("dibawah 100" = Rp100.000), matching how Indonesian shoppers abbreviate prices.
+const IMPLICIT_THOUSANDS_LIMIT = 1_000
 
 function parseAmount(rawNumber: string, unit: string | undefined): number | null {
-  let normalized: string
   if (unit) {
-    normalized = rawNumber.replace(/\.(?=\d{3}\b)/g, '').replace(',', '.')
-  } else {
-    normalized = rawNumber.replace(/[.,]/g, '')
+    const normalized = rawNumber.replace(/\.(?=\d{3}(?!\d))/g, '').replace(',', '.')
+    const value = Number.parseFloat(normalized)
+    if (!Number.isFinite(value)) return null
+    return Math.round(value * UNIT_MULTIPLIERS[unit])
   }
+
+  const isThousandsGrouped = /^\d{1,3}([.,]\d{3})+$/.test(rawNumber)
+  const normalized = isThousandsGrouped ? rawNumber.replace(/[.,]/g, '') : rawNumber.replace(',', '.')
   const value = Number.parseFloat(normalized)
   if (!Number.isFinite(value)) return null
-  return Math.round(value * (unit ? UNIT_MULTIPLIERS[unit] : 1))
+  if (value < IMPLICIT_THOUSANDS_LIMIT) return Math.round(value * 1_000)
+  return Math.round(value)
 }
 
 export function parseSmartQuery(query: string): ParsedQuery {
