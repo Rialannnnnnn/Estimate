@@ -22,6 +22,7 @@ import {
   Trash2,
   Edit2,
   Check,
+  Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -61,6 +62,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const [isEditingBudget, setIsEditingBudget] = useState(false)
   const [editBudget, setEditBudget] = useState('')
   const [showAddMaterial, setShowAddMaterial] = useState(false)
+  const [materialQuery, setMaterialQuery] = useState('')
 
   useEffect(() => {
     const loadProject = async () => {
@@ -225,6 +227,14 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const budgetStatus = getBudgetStatus(currentTotal, project.budget)
   const estimatedTotal = materials.reduce((sum, m) => sum + m.quantity * m.unit_price, 0)
   const purchasedCount = materials.filter(m => m.is_purchased).length
+  const normalizedMaterialQuery = materialQuery.trim().toLocaleLowerCase('id')
+  const filteredMaterials = normalizedMaterialQuery
+    ? materials.filter(
+        (m) =>
+          m.name.toLocaleLowerCase('id').includes(normalizedMaterialQuery) ||
+          (m.category ?? '').toLocaleLowerCase('id').includes(normalizedMaterialQuery)
+      )
+    : materials
 
   return (
     <main className="min-h-screen bg-brand-blue text-white">
@@ -370,7 +380,32 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             </div>
           )}
 
-          {materials.length === 0 ? (
+          {materials.length > 0 && (
+            <div className="relative mb-6 md:max-w-md">
+              <label htmlFor="material-search" className="sr-only">
+                Cari kebutuhan
+              </label>
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60"
+                aria-hidden="true"
+              />
+              <Input
+                id="material-search"
+                type="search"
+                value={materialQuery}
+                onChange={(e) => setMaterialQuery(e.target.value)}
+                placeholder="Cari kebutuhan..."
+                autoComplete="off"
+                className="h-11 border-white/30 bg-white/10 pl-10 text-white placeholder:text-white/50"
+              />
+            </div>
+          )}
+
+          {materials.length > 0 && filteredMaterials.length === 0 ? (
+            <div className="border-2 border-white/20 bg-card/50 p-8 text-center" role="status">
+              <p className="text-white/60">Tidak ada kebutuhan yang cocok dengan pencarianmu.</p>
+            </div>
+          ) : materials.length === 0 ? (
             <div className="border-2 border-white/20 bg-card/50 p-8 text-center">
               <p className="text-white/60 mb-4">Belum ada kebutuhan yang ditambahkan</p>
               <Button
@@ -382,7 +417,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              {materials.map((material) => (
+              {filteredMaterials.map((material) => (
                 <MaterialItem
                   key={material.id}
                   material={{

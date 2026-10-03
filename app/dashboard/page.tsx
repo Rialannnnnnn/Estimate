@@ -10,7 +10,7 @@ import { ProjectCard } from '@/components/project-card'
 import { TemplateSelector } from '@/components/template-selector'
 import { NeedsGenerator } from '@/components/needs-generator'
 import { Input } from '@/components/ui/input'
-import { ArrowRight, LogOut, Plus } from 'lucide-react'
+import { ArrowRight, LogOut, Plus, Search } from 'lucide-react'
 import type { Material } from '@/lib/types'
 import type { TemplateType } from '@/lib/templates'
 import { templates } from '@/lib/templates'
@@ -40,6 +40,7 @@ export default function DashboardPage() {
   const [generatedNeeds, setGeneratedNeeds] = useState<Material[]>([])
   const [creatingProject, setCreatingProject] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     const getUser = async () => {
@@ -163,6 +164,11 @@ export default function DashboardPage() {
   const fullName = user?.user_metadata?.full_name
   const displayName =
     typeof fullName === 'string' && fullName.trim() ? fullName.trim() : (user?.email ?? 'Pengguna')
+
+  const normalizedQuery = searchQuery.trim().toLocaleLowerCase('id')
+  const filteredProjects = normalizedQuery
+    ? projects.filter((project) => project.name.toLocaleLowerCase('id').includes(normalizedQuery))
+    : projects
 
   if (loading) {
     return (
@@ -300,13 +306,38 @@ export default function DashboardPage() {
             </h2>
           </div>
 
+          {projects.length > 0 && (
+            <div className="relative mb-6 md:max-w-md">
+              <label htmlFor="project-search" className="sr-only">
+                Cari rencana budget
+              </label>
+              <Search
+                className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                id="project-search"
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari rencana budget..."
+                autoComplete="off"
+                className="h-12 rounded-full border border-border bg-card pl-11 text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+          )}
+
           {projects.length === 0 ? (
             <div className="border border-dashed border-border p-12 text-center rounded-3xl bg-card/60">
               <p className="text-muted-foreground text-lg">Belum ada rencana budget. Mulai dari kebutuhan yang paling penting.</p>
             </div>
+          ) : filteredProjects.length === 0 ? (
+            <div className="border border-dashed border-border p-12 text-center rounded-3xl bg-card/60" role="status">
+              <p className="text-muted-foreground text-lg">Tidak ada rencana yang cocok dengan pencarianmu.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {projects.map((project) => (
+              {filteredProjects.map((project) => (
                 <ProjectCard
                   key={project.id}
                   id={project.id}
