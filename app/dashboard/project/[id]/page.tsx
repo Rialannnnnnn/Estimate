@@ -25,6 +25,7 @@ import {
   Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { smartFilterMaterials } from '@/lib/smart-search'
 
 interface ProjectPageProps {
   params: Promise<{ id: string }>
@@ -227,14 +228,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const budgetStatus = getBudgetStatus(currentTotal, project.budget)
   const estimatedTotal = materials.reduce((sum, m) => sum + m.quantity * m.unit_price, 0)
   const purchasedCount = materials.filter(m => m.is_purchased).length
-  const normalizedMaterialQuery = materialQuery.trim().toLocaleLowerCase('id')
-  const filteredMaterials = normalizedMaterialQuery
-    ? materials.filter(
-        (m) =>
-          m.name.toLocaleLowerCase('id').includes(normalizedMaterialQuery) ||
-          (m.category ?? '').toLocaleLowerCase('id').includes(normalizedMaterialQuery)
-      )
-    : materials
+  const filteredMaterials = smartFilterMaterials(materials, materialQuery)
 
   return (
     <main className="min-h-screen bg-brand-blue text-white">
@@ -381,23 +375,29 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           )}
 
           {materials.length > 0 && (
-            <div className="relative mb-6 md:max-w-md">
-              <label htmlFor="material-search" className="sr-only">
-                Cari kebutuhan
-              </label>
-              <Search
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60"
-                aria-hidden="true"
-              />
-              <Input
-                id="material-search"
-                type="search"
-                value={materialQuery}
-                onChange={(e) => setMaterialQuery(e.target.value)}
-                placeholder="Cari kebutuhan..."
-                autoComplete="off"
-                className="h-11 border-white/30 bg-white/10 pl-10 text-white placeholder:text-white/50"
-              />
+            <div className="mb-6 flex flex-col gap-2 md:max-w-md">
+              <div className="relative">
+                <label htmlFor="material-search" className="sr-only">
+                  Cari kebutuhan
+                </label>
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60"
+                  aria-hidden="true"
+                />
+                <Input
+                  id="material-search"
+                  type="search"
+                  value={materialQuery}
+                  onChange={(e) => setMaterialQuery(e.target.value)}
+                  placeholder="Cari kebutuhan..."
+                  autoComplete="off"
+                  aria-describedby="material-search-hint"
+                  className="h-11 border-white/30 bg-white/10 pl-10 text-white placeholder:text-white/50"
+                />
+              </div>
+              <p id="material-search-hint" className="text-sm text-white/60">
+                Contoh: makanan belum dibeli, di bawah 100 ribu, paling mahal
+              </p>
             </div>
           )}
 
