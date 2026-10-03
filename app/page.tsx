@@ -1,10 +1,16 @@
-'use client'
-
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ArrowRight } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const isLoggedIn = Boolean(user)
+  const appHref = isLoggedIn ? '/dashboard' : '/auth/login'
+
   return (
     <div className="min-h-screen bg-background text-foreground paper-texture">
       {/* Soft atmosphere */}
@@ -17,11 +23,20 @@ export default function LandingPage() {
             <span className="text-2xl font-extrabold tracking-tight">EstiMate</span>
             <span className="text-label text-muted-foreground">v1.0</span>
           </Link>
-          <Link href="/dashboard">
-            <Button variant="outline" className="border border-primary/20 bg-card text-primary hover:bg-secondary font-semibold rounded-full">
-              Buka EstiMate
-            </Button>
-          </Link>
+          <nav aria-label="Navigasi utama" className="flex items-center gap-3">
+            {!isLoggedIn && (
+              <Link href="/auth/register">
+                <Button variant="ghost" className="text-primary hover:bg-secondary font-semibold rounded-full">
+                  Daftar
+                </Button>
+              </Link>
+            )}
+            <Link href={appHref}>
+              <Button variant="outline" className="border border-primary/20 bg-card text-primary hover:bg-secondary font-semibold rounded-full">
+                Buka EstiMate
+              </Button>
+            </Link>
+          </nav>
         </div>
       </header>
 
@@ -55,13 +70,25 @@ export default function LandingPage() {
                   Makan, transportasi, tagihan, hiburan, dan tabungan. Susun prioritas belanja dengan lebih tenang.
                 </p>
               </div>
-              <div className="flex flex-col justify-end items-start md:items-end">
-            <Link href="/dashboard">
-              <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 border border-primary text-lg px-8 font-semibold rounded-full">
-                Mulai Budgeting
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-            </Link>
+              <div className="flex flex-col justify-end items-start md:items-end gap-3">
+                <Link href={appHref}>
+                  <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 border border-primary text-lg px-8 font-semibold rounded-full">
+                    Mulai Budgeting
+                    <ArrowRight className="ml-2 w-5 h-5" />
+                  </Button>
+                </Link>
+                {isLoggedIn ? (
+                  <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline">
+                    Lanjutkan ke Dashboard
+                  </Link>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Belum punya akun?{' '}
+                    <Link href="/auth/register" className="font-semibold text-primary underline-offset-4 hover:underline">
+                      Daftar
+                    </Link>
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -235,7 +262,7 @@ export default function LandingPage() {
             <p className="text-xl text-muted-foreground mb-8 max-w-xl">
               Mulai dari kebutuhan yang paling penting. Buat rencana anggaran pertamamu dan cegah pengeluaran berlebih.
             </p>
-            <Link href="/dashboard">
+            <Link href={appHref}>
               <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 text-xl px-10 font-bold h-16">
                 Buat Rencana Anggaran
                 <ArrowRight className="ml-3 w-6 h-6" />
