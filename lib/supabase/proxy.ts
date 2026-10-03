@@ -15,11 +15,26 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const { pathname } = request.nextUrl
+  const isProtectedRoute = pathname === '/dashboard' || pathname.startsWith('/dashboard/')
+  const isAuthFormRoute = pathname === '/auth/login' || pathname === '/auth/register'
+
+  // Without Supabase config the session cannot be checked: keep public pages
+  // reachable instead of crashing every request, and keep the dashboard locked.
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Supabase env vars are missing; skipping session refresh.')
+    return isProtectedRoute
+      ? redirectWithCookies(request, supabaseResponse, '/auth/login')
+      : supabaseResponse
+  }
+
   // With Fluid compute, don't put this client in a global environment
   // variable. Always create a new one on each request.
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -49,10 +64,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  const { pathname } = request.nextUrl
-  const isProtectedRoute = pathname === '/dashboard' || pathname.startsWith('/dashboard/')
-  const isAuthFormRoute = pathname === '/auth/login' || pathname === '/auth/register'
 
   if (isProtectedRoute && !user) {
     return redirectWithCookies(request, supabaseResponse, '/auth/login')
