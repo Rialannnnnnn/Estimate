@@ -11,9 +11,9 @@ export const metadata: Metadata = {
 export default function RegisterPage() {
   return (
     <AuthShell
-      eyebrow="Daftar / Mulai lebih terkontrol"
-      title="Buat akun EstiMate."
-      description="Simpan rencana budget, pantau pengeluaran, dan susun prioritas belanjamu di satu tempat."
+        eyebrow="Daftar / Mulai lebih terarah"
+        title="Mulai atur uangmu."
+        description="Buat rencana budget, susun kebutuhan, dan kendalikan pengeluaran dari satu tempat."
       footer={
         <p>
           Sudah punya akun?{' '}

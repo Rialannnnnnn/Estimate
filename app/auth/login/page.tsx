@@ -20,8 +20,8 @@ export default async function LoginPage({
   return (
     <AuthShell
       eyebrow="Masuk / Lanjutkan rencanamu"
-      title="Selamat datang kembali."
-      description="Masuk untuk melihat dan mengatur rencana budget harian maupun bulananmu."
+        title="Kembali ke rencanamu."
+        description="Lihat kembali budget, pantau pengeluaran, dan lanjutkan rencana yang sudah kamu susun."
       footer={
         <p>
           Belum punya akun?{' '}
