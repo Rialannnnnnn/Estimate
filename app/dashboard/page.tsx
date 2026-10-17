@@ -9,6 +9,8 @@ import { BrowserWarning } from '@/components/browser-warning'
 import { ProjectCard } from '@/components/project-card'
 import { TemplateSelector } from '@/components/template-selector'
 import { NeedsGenerator } from '@/components/needs-generator'
+import { DashboardAside } from '@/components/dashboard-aside'
+import { DashboardSummary } from '@/components/dashboard-summary'
 import { Input } from '@/components/ui/input'
 import { ArrowRight, LogOut, Plus, Search } from 'lucide-react'
 import type { Material } from '@/lib/types'
@@ -182,16 +184,15 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground paper-texture">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(189,235,234,.28),transparent_38%)] pointer-events-none" />
+    <main className="min-h-screen overflow-x-clip text-foreground workspace-bg">
       <BrowserWarning />
 
       {/* Header */}
-      <header className="relative z-10 border-b border-border/70 sticky top-0 bg-background/85 backdrop-blur-md">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-display text-4xl md:text-5xl text-primary">EstiMate</h1>
+      <header className="sticky top-0 z-40 border-b border-soft-blue bg-ice-blue/85 backdrop-blur-md">
+        <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-display text-3xl sm:text-4xl md:text-5xl text-primary">EstiMate</h1>
               <p className="text-label text-muted-foreground">Ruang tenang untuk mengatur kebutuhanmu</p>
             </div>
             <div className="flex items-center gap-4">
@@ -203,7 +204,7 @@ export default function DashboardPage() {
                 onClick={() => void handleLogout()}
                 disabled={loggingOut}
                 variant="outline"
-                className="rounded-full border border-primary/20 bg-card font-semibold text-primary hover:bg-secondary"
+                className="rounded-full border border-primary/20 bg-card font-semibold text-primary shadow-sm transition-all duration-200 hover:border-primary/35 hover:bg-secondary hover:text-primary hover:shadow-md"
               >
                 <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
                 {loggingOut ? 'Keluar...' : 'Logout'}
@@ -213,19 +214,33 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="relative z-10 container mx-auto px-6 py-12">
+      <div className="relative z-0 mx-auto w-full max-w-[1200px] px-4 sm:px-6 py-8 md:py-10">
+        <section aria-labelledby="overview-heading" className="mb-8 flex flex-col gap-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="max-w-xl">
+              <h2 id="overview-heading" className="text-balance text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+                Atur kebutuhanmu dengan tenang.
+              </h2>
+              <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
+                Rencanakan budget, tentukan prioritas, dan pantau pengeluaranmu dalam satu tempat.
+              </p>
+            </div>
+          </div>
+          {projects.length > 0 && <DashboardSummary projects={projects} />}
+        </section>
+
         {/* New Project Section */}
         {!showNewProject ? (
-          <div className="mb-12">
+          <div className="mb-8">
             <Button
               onClick={() => setShowNewProject(true)}
-              className="w-full md:w-auto px-8 py-4 bg-primary text-primary-foreground border border-primary font-bold text-lg hover:bg-primary/90 rounded-full"
+              className="w-full md:w-auto px-8 py-4 bg-primary text-primary-foreground border border-primary font-bold text-lg rounded-full shadow-[0_6px_18px_rgba(23,63,95,.18)] transition-all duration-200 hover:bg-brand-main hover:border-brand-main hover:shadow-[0_10px_26px_rgba(23,63,95,.24)] motion-safe:hover:-translate-y-0.5"
             >
               <Plus className="w-5 h-5 mr-2" /> Rencana Budget Baru
             </Button>
           </div>
         ) : (
-          <div className="border border-border/70 bg-card/85 p-6 md:p-8 mb-12 rounded-3xl shadow-[0_18px_60px_rgba(23,59,88,.07)] backdrop-blur">
+          <div className="border border-soft-blue bg-card p-6 md:p-8 mb-8 rounded-3xl shadow-[0_1px_2px_rgba(23,63,95,.04),0_12px_36px_rgba(23,63,95,.08)]">
             <div className="mb-6">
               <p className="text-label font-bold text-primary mb-2">MULAI DARI KONTEKSMU</p>
               <h2 className="text-2xl font-semibold text-foreground">Apa yang perlu kamu siapkan?</h2>
@@ -234,6 +249,8 @@ export default function DashboardPage() {
             {showNeedsGenerator && (
               <NeedsGenerator
                 period={planningPeriod}
+                templateType={selectedTemplate}
+                budgetLimit={Number(budgetLimit) > 0 ? Number(budgetLimit) : selectedTemplate ? templates[selectedTemplate].budget : null}
                 initialCriteria={criteria}
                 initialItems={generatedNeeds}
                 onConfirm={(items) => {
@@ -297,9 +314,10 @@ export default function DashboardPage() {
           </div>
         )}
 
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] lg:items-start">
         {/* Projects Grid */}
-        <section>
-          <div className="mb-8">
+        <section className="min-w-0">
+          <div className="mb-5">
             <span className="text-label text-muted-foreground">Rencana Budgetmu</span>
             <h2 className="text-3xl font-bold mt-1">
               {projects.length} {projects.length === 1 ? 'Proyek' : 'Proyek'}
@@ -322,21 +340,21 @@ export default function DashboardPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari rencana budget..."
                 autoComplete="off"
-                className="h-12 rounded-full border border-border bg-card pl-11 text-foreground placeholder:text-muted-foreground"
+                className="h-12 rounded-full border border-soft-blue bg-card pl-11 text-foreground shadow-sm transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-muted-foreground hover:border-brand-secondary/40 hover:bg-popover hover:shadow-md focus-visible:border-brand-secondary/60"
               />
             </div>
           )}
 
           {projects.length === 0 ? (
-            <div className="border border-dashed border-border p-12 text-center rounded-3xl bg-card/60">
+            <div className="border border-dashed border-border p-12 text-center rounded-3xl bg-ice-blue/80 transition-colors duration-200 hover:border-brand-secondary/40 hover:bg-ice-blue">
               <p className="text-muted-foreground text-lg">Belum ada rencana budget. Mulai dari kebutuhan yang paling penting.</p>
             </div>
           ) : filteredProjects.length === 0 ? (
-            <div className="border border-dashed border-border p-12 text-center rounded-3xl bg-card/60" role="status">
+            <div className="border border-dashed border-border p-12 text-center rounded-3xl bg-ice-blue/80 transition-colors duration-200 hover:border-brand-secondary/40 hover:bg-ice-blue" role="status">
               <p className="text-muted-foreground text-lg">Tidak ada rencana yang cocok dengan pencarianmu.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {filteredProjects.map((project) => (
                 <ProjectCard
                   key={project.id}
@@ -351,6 +369,9 @@ export default function DashboardPage() {
             </div>
           )}
         </section>
+
+        <DashboardAside displayName={displayName} />
+        </div>
       </div>
     </main>
   )

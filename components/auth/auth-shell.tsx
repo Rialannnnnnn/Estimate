@@ -12,7 +12,7 @@ interface AuthShellProps {
 export function AuthShell({ eyebrow, title, description, children, footer }: AuthShellProps) {
   return (
     <main className="relative min-h-screen bg-background text-foreground paper-texture">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(189,235,234,.35),transparent_42%)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(220,234,242,.7),transparent_42%)]" />
 
       <header className="relative z-10 border-b border-border/70 bg-background/70 backdrop-blur-sm">
         <div className="container mx-auto flex items-center justify-between px-6 py-4">

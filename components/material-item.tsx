@@ -80,7 +80,7 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
 
   if (isEditing) {
     return (
-      <div className="bg-card p-6 border border-border/50">
+      <div className="rounded-2xl bg-card p-4 sm:p-6 border border-soft-blue text-ink">
         <div className="space-y-4">
           <Input
             value={editName}
@@ -135,11 +135,11 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
   return (
     <div
       className={cn(
-        'bg-card p-6 border border-border/50 transition-all group',
-        material.isPurchased && 'bg-success/10 border-l-4 border-l-success'
+        'rounded-2xl bg-card p-4 sm:p-6 border border-soft-blue text-ink shadow-[0_4px_14px_rgba(15,46,71,0.10)] transition-colors group',
+        material.isPurchased && 'bg-ice-blue'
       )}
     >
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3 sm:gap-4">
         {/* Checkbox */}
         <Checkbox
           id={`material-${material.id}`}
@@ -150,8 +150,8 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div>
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+            <div className="min-w-0 break-words">
               <span className="text-mono-sm text-muted-foreground">
                 {String(index + 1).padStart(2, '0')}
               </span>
@@ -167,7 +167,7 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
             </div>
             
             {/* Total Price */}
-            <span className="font-mono font-bold text-lg text-foreground">
+            <span className="font-mono font-bold text-base sm:text-lg text-foreground whitespace-nowrap">
               {formatCurrency(totalPrice)}
             </span>
           </div>
@@ -200,11 +200,12 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
             </div>
 
             {/* Actions */}
-            <div className="flex gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex gap-1 ml-auto opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                aria-label="Ubah kebutuhan"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                 onClick={() => setIsEditing(true)}
               >
                 <Edit2 className="w-4 h-4" />
@@ -212,7 +213,8 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                aria-label="Hapus kebutuhan"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                 onClick={() => material.id && onDelete(material.id)}
               >
                 <Trash2 className="w-4 h-4" />
@@ -222,7 +224,7 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
 
           {/* Actual Price Input (shown when purchased) */}
           {material.isPurchased && (
-            <div className="mt-4 pt-4 border-t border-border/50 flex items-center gap-3">
+            <div className="mt-4 pt-4 border-t border-border/50 flex flex-wrap items-center gap-3">
               <span className="text-label text-muted-foreground">Harga Asli</span>
               <Input
                 type="number"

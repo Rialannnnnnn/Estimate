@@ -47,8 +47,11 @@ export function ProjectCard({
   }
 
   return (
-    <Link href={`/dashboard/project/${id}`}>
-      <div className="h-full bg-brand-blue border-2 border-white/20 hover:border-white/50 p-6 flex flex-col justify-between transition-all cursor-pointer">
+    <Link
+      href={`/dashboard/project/${id}`}
+      className="group block h-full rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    >
+      <div className="surface-card h-full rounded-3xl bg-brand-blue border border-white/15 p-6 flex flex-col justify-between cursor-pointer shadow-[0_6px_18px_rgba(15,46,71,.16)] hover:border-white/25 hover:brightness-[1.06] hover:shadow-[0_14px_32px_rgba(15,46,71,.24)]">
         <div className="mb-6">
           <div className="flex items-start justify-between mb-4">
             <h3 className="text-white font-bold text-lg line-clamp-2 flex-1">{name}</h3>
@@ -66,9 +69,9 @@ export function ProjectCard({
 
         {/* Progress Bar */}
         <div className="mb-4">
-          <div className="bg-white/10 border border-white/20 h-2 mb-2">
+          <div className="bg-white/10 h-2 mb-2 overflow-hidden rounded-full">
             <div
-              className="h-full bg-white transition-all"
+              className="h-full rounded-full bg-white transition-all"
               style={{ width: `${Math.min(percentage, 100)}%` }}
             />
           </div>

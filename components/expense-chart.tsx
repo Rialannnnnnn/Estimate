@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 
 interface Material {
   id?: string
@@ -18,17 +18,53 @@ interface ExpenseChartProps {
 }
 
 const COLORS = [
-  '#FFFFFF',
-  '#C2DDF4',
-  '#799CCB',
-  '#4477DD',
-  '#4866AF',
-  '#2952A3',
-  '#1A3D7A',
-  '#818CF8',
-  '#A5B4FC',
-  '#E0E7FF',
+  '#173F5F',
+  '#9DC3DE',
+  '#397BA8',
+  '#DCEAF5',
+  '#245C85',
+  '#B9D4E8',
+  '#0F2E47',
+  '#7FB0D3',
+  '#2F6E99',
+  '#C9DDEC',
 ]
+
+const LIGHT_SLICE_INDEXES = new Set([1, 3, 5, 7, 9])
+const DARK_TEXT = '#17324D'
+const LIGHT_TEXT = '#FFFFFF'
+const RADIAN = Math.PI / 180
+
+interface SliceLabelProps {
+  cx: number
+  cy: number
+  midAngle: number
+  innerRadius: number
+  outerRadius: number
+  percent: number
+  index: number
+}
+
+function renderSliceLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: SliceLabelProps) {
+  if (percent < 0.06) return null
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.55
+  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+  const colorIndex = index % COLORS.length
+  return (
+    <text
+      x={x}
+      y={y}
+      fill={LIGHT_SLICE_INDEXES.has(colorIndex) ? DARK_TEXT : LIGHT_TEXT}
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize={13}
+      fontWeight={700}
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  )
+}
 
 export function ExpenseChart({ materials, title = 'Breakdown Pengeluaran' }: ExpenseChartProps) {
   const chartData = useMemo(() => {
@@ -53,23 +89,25 @@ export function ExpenseChart({ materials, title = 'Breakdown Pengeluaran' }: Exp
 
   if (chartData.length === 0) {
     return (
-      <div className="w-full h-64 flex items-center justify-center border-2 border-dashed border-white/20">
-        <p className="text-white/60 text-mono-sm">Belum ada material</p>
+      <div className="w-full h-64 flex items-center justify-center rounded-xl border-2 border-dashed border-soft-blue">
+        <p className="text-ink-muted text-mono-sm">Belum ada material</p>
       </div>
     )
   }
 
+  const getPercentage = (value: number, digits = 1) =>
+    totalSpent > 0 ? ((value / totalSpent) * 100).toFixed(digits) : '0'
+
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0]
-      const percentage = ((data.value / totalSpent) * 100).toFixed(1)
       return (
-        <div className="bg-brand-blue border-2 border-white p-3">
-          <p className="text-white font-bold text-label">{data.name}</p>
-          <p className="text-white text-mono-sm">
+        <div className="rounded-xl border border-soft-blue bg-card p-3 shadow-md">
+          <p className="text-ink font-bold text-sm">{data.name}</p>
+          <p className="text-ink text-mono-sm">
             Rp {data.value.toLocaleString('id-ID')}
           </p>
-          <p className="text-white/70 text-label">{percentage}%</p>
+          <p className="text-ink-muted text-xs">{getPercentage(data.value)}%</p>
         </div>
       )
     }
@@ -77,68 +115,81 @@ export function ExpenseChart({ materials, title = 'Breakdown Pengeluaran' }: Exp
   }
 
   return (
-    <div className="w-full space-y-4">
-      <h3 className="text-label font-bold text-white/90">{title}</h3>
-      
-      <ResponsiveContainer width="100%" height={400}>
-        <PieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={({ name, value, percent }) => {
-              if (percent < 0.05) return null
-              return `${name} ${(percent * 100).toFixed(0)}%`
-            }}
-            outerRadius={120}
-            fill="#8884d8"
-            dataKey="value"
-          >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="#1A3D7A" strokeWidth={2} />
-            ))}
-          </Pie>
-          <Tooltip content={<CustomTooltip />} />
-          <Legend 
-            layout="vertical" 
-            verticalAlign="bottom" 
-            height={36}
-            wrapperStyle={{ paddingTop: '20px' }}
-            formatter={(value, entry) => {
-              const data = entry.payload as { value?: number } | undefined
-              const amount = data?.value ?? 0
-              const percentage = totalSpent > 0 ? ((amount / totalSpent) * 100).toFixed(0) : '0'
-              return `${value}: Rp ${amount.toLocaleString('id-ID')} (${percentage}%)`
-            }}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+    <div className="flex w-full flex-col gap-6">
+      <h3 className="text-lg font-bold text-primary">{title}</h3>
 
-      {/* Category Breakdown List */}
-      <div className="space-y-2">
-        <h4 className="text-label font-bold text-white/70">Detail Kategori</h4>
-        <div className="space-y-1">
-          {chartData.map((item, index) => {
-            const percentage = ((item.value / totalSpent) * 100).toFixed(1)
-            return (
-              <div key={item.name} className="flex items-center justify-between border-b border-white/10 pb-2">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-4 h-4 border-2 border-white/30"
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
+        {/* Chart + legend */}
+        <div className="flex min-w-0 flex-col gap-6">
+          <div className="mx-auto aspect-square w-full max-w-72 sm:max-w-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={renderSliceLabel as any}
+                  outerRadius="95%"
+                  dataKey="value"
+                  isAnimationActive={false}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${entry.name}`} fill={COLORS[index % COLORS.length]} stroke="#FFFFFF" strokeWidth={2} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2" aria-label="Legenda kategori">
+            {chartData.map((item, index) => (
+              <li key={item.name} className="flex items-center gap-2 text-sm text-ink">
+                <span
+                  className="h-3 w-3 shrink-0 rounded-sm border border-soft-blue"
+                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                  aria-hidden="true"
+                />
+                <span className="break-words">{item.name}</span>
+                <span className="font-mono text-ink-muted">{getPercentage(item.value, 0)}%</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Category details */}
+        <div className="flex min-w-0 flex-col gap-3">
+          <h4 className="text-base font-semibold text-primary">Detail Kategori</h4>
+          <ul className="flex flex-col">
+            {chartData.map((item, index) => (
+              <li
+                key={item.name}
+                className="flex items-center justify-between gap-4 border-b border-soft-blue py-3"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span
+                    className="h-4 w-4 shrink-0 rounded-sm border border-soft-blue"
                     style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    aria-hidden="true"
                   />
-                  <span className="text-white text-label">{item.name}</span>
+                  <span className="min-w-0 break-words text-sm font-medium text-ink">{item.name}</span>
                 </div>
-                <div className="text-right">
-                  <p className="text-white font-bold text-mono-sm">
+                <div className="shrink-0 text-right">
+                  <p className="font-mono text-sm font-bold text-ink">
                     Rp {item.value.toLocaleString('id-ID')}
                   </p>
-                  <p className="text-white/60 text-label">{percentage}%</p>
+                  <p className="text-xs text-ink-muted">{getPercentage(item.value)}%</p>
                 </div>
-              </div>
-            )
-          })}
+              </li>
+            ))}
+          </ul>
+          <div className="flex items-center justify-between gap-4 rounded-xl bg-ice-blue px-3 py-3">
+            <span className="text-sm font-semibold text-ink">Total</span>
+            <span className="font-mono text-base font-bold text-primary">
+              Rp {totalSpent.toLocaleString('id-ID')}
+            </span>
+          </div>
         </div>
       </div>
     </div>
