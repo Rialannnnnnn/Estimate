@@ -19,19 +19,19 @@ interface ExpenseChartProps {
 
 const COLORS = [
   '#FFFFFF',
-  '#C2DDF4',
-  '#799CCB',
-  '#4477DD',
-  '#4866AF',
-  '#2952A3',
-  '#1A3D7A',
-  '#818CF8',
-  '#A5B4FC',
-  '#E0E7FF',
+  '#9DC3DE',
+  '#E87878',
+  '#5B95C2',
+  '#DCEAF2',
+  '#3A78A6',
+  '#8CCBC6',
+  '#F4B6A6',
+  '#C3D5E4',
+  '#6FA7A3',
 ]
 
-const LIGHT_SLICE_INDEXES = new Set([0, 1, 8, 9])
-const DARK_TEXT = '#173B58'
+const LIGHT_SLICE_INDEXES = new Set([0, 1, 2, 3, 4, 6, 7, 8, 9])
+const DARK_TEXT = '#173F5F'
 const LIGHT_TEXT = '#FFFFFF'
 const RADIAN = Math.PI / 180
 
@@ -135,7 +135,7 @@ export function ExpenseChart({ materials, title = 'Breakdown Pengeluaran' }: Exp
                   isAnimationActive={false}
                 >
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${entry.name}`} fill={COLORS[index % COLORS.length]} stroke="#1A3D7A" strokeWidth={2} />
+                    <Cell key={`cell-${entry.name}`} fill={COLORS[index % COLORS.length]} stroke="#173F5F" strokeWidth={2} />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />

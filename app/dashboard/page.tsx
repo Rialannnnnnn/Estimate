@@ -183,7 +183,7 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen overflow-x-clip bg-background text-foreground paper-texture">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(189,235,234,.28),transparent_38%)] pointer-events-none" />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(220,234,242,.65),transparent_38%)] pointer-events-none" />
       <BrowserWarning />
 
       {/* Header */}
