@@ -288,7 +288,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
               <p className="text-lg font-semibold break-words">{templates[project.template_type]?.name}</p>
             </div>
             <div className="text-right ml-auto">
-              <p className="text-label text-white/85 mb-1">DANA</p>
+              <p className="text-label text-white/85 mb-1">BATAS ANGGARAN</p>
               {isEditingBudget ? (
                 <div className="flex items-center gap-2">
                   <Input
@@ -323,6 +323,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             status={budgetStatus}
             className="mb-8"
           />
+
+          <p className="mb-5 text-xs text-white/85">Harga item adalah estimasi yang dapat berbeda menurut tempat dan waktu pembelian, bukan data pasar real-time. Dana rencana adalah batas anggaran pilihanmu, bukan jumlah yang wajib dihabiskan.</p>
 
           {/* Stats */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">

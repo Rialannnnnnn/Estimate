@@ -2,6 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { analyzeBudget, generateRecommendations, itemTotal, ITEMS } from '../lib/recommendations.ts'
+import { templates, templateList } from '../lib/templates.ts'
 
 const keys = (result: ReturnType<typeof generateRecommendations>) => result.items.map((item) => item.itemKey)
 
@@ -107,4 +108,55 @@ test('budget analysis suggests optional cuts first and never removes items', () 
   assert.ok(items.some((item) => item.name === analysis.suggestions[0].name))
   assert.equal(items.length, generateRecommendations(fixtures.officeIntern).items.length)
   assert.equal(analyzeBudget(items, 10_000_000).status, 'within')
+})
+
+
+test('budget suggestions never set essential quantity to zero, and suggestions are non-mutating', () => {
+  const essentials = [
+    { id: 'one', name: 'Biaya wajib', quantity: 1, unitPrice: 1000000, priority: 'essential' as const },
+    { id: 'two', name: 'Kebutuhan harian', quantity: 12, unitPrice: 50000, priority: 'essential' as const },
+  ]
+  const before = JSON.stringify(essentials)
+  const analysis = analyzeBudget(essentials, 500000)
+  assert.equal(analysis.status, 'over')
+  if (analysis.status !== 'over') return
+  assert.ok(analysis.suggestions.every((s) => s.kind !== 'remove'))
+  assert.ok(analysis.suggestions.every((s) => (s.newQuantity ?? 1) >= 1))
+  assert.ok(analysis.stillOverAfterSuggestions > 0)
+  assert.equal(JSON.stringify(essentials), before)
+})
+
+test('optional quantities can be reduced precisely before any essential changes', () => {
+  const analysis = analyzeBudget([
+    { id: 'jajan', name: 'Jajan', quantity: 10, unitPrice: 10000, priority: 'optional' as const },
+    { id: 'pokok', name: 'Makan wajib', quantity: 1, unitPrice: 100000, priority: 'essential' as const },
+  ], 175000)
+  assert.equal(analysis.status, 'over')
+  if (analysis.status !== 'over') return
+  assert.equal(analysis.suggestions.length, 1)
+  assert.deepEqual(analysis.suggestions[0], { id: 'jajan', kind: 'reduce', name: 'Jajan', saving: 30000, newQuantity: 7 })
+})
+
+test('template example budgets do not override a user supplied budget in analysis', () => {
+  // Monthly kos example is Rp1.500.000, but this scenario intentionally uses Rp500.000.
+  const items = generateRecommendations({ description: '', period: 'monthly', templateType: 'anak-kos' }).items
+  const analysis = analyzeBudget(items, 500000)
+  assert.equal(analysis.status, 'over')
+  if (analysis.status !== 'over') return
+  assert.equal(analysis.budget, 500000)
+  assert.equal(analysis.over, analysis.total - 500000)
+})
+
+
+test('all ten templates generate items with no description and are labeled as sample budgets', () => {
+  assert.equal(templateList.length, 10)
+  for (const template of templateList) {
+    assert.ok(template.budget > 0)
+    const period = template.type === 'harian-dasar' ? 'daily' : 'monthly'
+    const recommendations = generateRecommendations({ description: '', period, templateType: template.type })
+    assert.ok(recommendations.items.length > 0, `empty recommendations for ${template.type}`)
+    assert.ok(!recommendations.usedFallback, `wrong fallback for ${template.type}`)
+    assert.ok(recommendations.items.every((item) => item.unitPrice > 0 && item.quantity >= 1))
+  }
+  assert.equal(templates['anak-kos'].budget, 1500000)
 })
