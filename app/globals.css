@@ -91,6 +91,10 @@
   --sidebar-accent-foreground: #F4F8FB;
   --sidebar-border: #2E5878;
   --sidebar-ring: #9DC3DE;
+  --soft-blue: #2E5878;
+  --ice-blue: #1D4A6E;
+  --ink: #F4F8FB;
+  --ink-muted: #B4CCDD;
 }
 
 @theme inline {
