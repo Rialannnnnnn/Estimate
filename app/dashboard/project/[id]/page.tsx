@@ -231,41 +231,44 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const filteredMaterials = smartFilterMaterials(materials, materialQuery)
 
   return (
-    <main className="min-h-screen bg-brand-blue text-white">
-      <div className="fixed inset-0 grid-pattern pointer-events-none" />
+    <main className="min-h-screen overflow-x-clip bg-brand-blue text-white">
+      <div className="fixed inset-0 grid-pattern pointer-events-none" aria-hidden="true" />
       <BrowserWarning />
 
       {/* Header */}
-      <header className="relative z-10 border-b border-white/10 sticky top-0 bg-brand-blue/95 backdrop-blur">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <Link href="/dashboard">
-              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+      <header className="sticky top-0 z-40 border-b border-white/15 bg-brand-blue/95 backdrop-blur supports-[backdrop-filter]:bg-brand-blue/85">
+        <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Link href="/dashboard" aria-label="Kembali ke dashboard" className="shrink-0">
+              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" tabIndex={-1}>
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             </Link>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               {isEditingName ? (
                 <div className="flex items-center gap-2">
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="bg-white/10 border-white/30 text-white text-2xl font-bold h-auto py-1"
+                    aria-label="Nama proyek"
+                    className="min-w-0 bg-white/10 border-white/30 text-white text-xl sm:text-2xl font-bold h-auto py-1"
                   />
                   <Button
                     size="icon"
                     onClick={handleUpdateProjectName}
-                    className="bg-white text-brand-blue hover:bg-white/90"
+                    aria-label="Simpan nama proyek"
+                    className="shrink-0 bg-white text-brand-blue hover:bg-white/90"
                   >
                     <Check className="w-4 h-4" />
                   </Button>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 group">
-                  <h1 className="text-display text-3xl md:text-4xl">{project.name}</h1>
+                <div className="flex items-center gap-2 group min-w-0">
+                  <h1 className="text-display text-2xl sm:text-3xl md:text-4xl min-w-0 break-words py-1">{project.name}</h1>
                   <button
                     onClick={() => setIsEditingName(true)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label="Ubah nama proyek"
+                    className="shrink-0 p-1 opacity-80 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -276,23 +279,24 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         </div>
       </header>
 
-      <div className="relative z-10 container mx-auto px-6 py-12">
+      <div className="relative z-0 container mx-auto px-4 sm:px-6 py-8 md:py-12">
         {/* Budget Section */}
-        <div className="mb-12">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-label text-white/60 mb-1">TEMPLATE</p>
-              <p className="text-lg font-semibold">{templates[project.template_type]?.name}</p>
+        <div className="mb-10 md:mb-12">
+          <div className="flex flex-wrap items-end justify-between gap-4 mb-4">
+            <div className="min-w-0">
+              <p className="text-label text-white/85 mb-1">TEMPLATE</p>
+              <p className="text-lg font-semibold break-words">{templates[project.template_type]?.name}</p>
             </div>
-            <div className="text-right">
-              <p className="text-label text-white/60 mb-1">DANA</p>
+            <div className="text-right ml-auto">
+              <p className="text-label text-white/85 mb-1">DANA</p>
               {isEditingBudget ? (
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
                     value={editBudget}
                     onChange={(e) => setEditBudget(e.target.value)}
-                    className="bg-white/10 border-white/30 text-white text-lg font-bold w-32 h-auto py-1"
+                    aria-label="Jumlah dana"
+                    className="bg-white/10 border-white/30 text-white text-lg font-bold w-36 h-auto py-1"
                   />
                   <Button
                     size="icon"
@@ -321,25 +325,26 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           />
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div className="border-2 border-white/20 p-4">
-              <p className="text-label text-white/60 mb-2">ESTIMASI</p>
-              <p className="text-display text-xl">{formatCurrency(estimatedTotal)}</p>
-            </div>
-            <div className="border-2 border-white/20 p-4">
-              <p className="text-label text-white/60 mb-2">REALISASI</p>
-              <p className="text-display text-xl">{formatCurrency(currentTotal)}</p>
-            </div>
-            <div className="border-2 border-white/20 p-4">
-              <p className="text-label text-white/60 mb-2">DIBELI</p>
-              <p className="text-display text-xl">{purchasedCount}/{materials.length}</p>
-            </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+            {[
+              { label: 'ESTIMASI', value: formatCurrency(estimatedTotal) },
+              { label: 'REALISASI', value: formatCurrency(currentTotal) },
+              { label: 'DIBELI', value: `${purchasedCount}/${materials.length}` },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="flex min-w-0 items-center justify-between gap-3 border-2 border-white/25 p-4 sm:flex-col sm:justify-center sm:text-center"
+              >
+                <p className="text-label text-white/85 sm:mb-1">{stat.label}</p>
+                <p className="text-display text-lg sm:text-base lg:text-xl min-w-0 break-words">{stat.value}</p>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Expense Chart */}
         {materials.length > 0 && (
-          <div className="border-2 border-white/20 bg-card/50 p-6 md:p-8 mb-12">
+          <div className="border-2 border-white/20 bg-card/50 p-4 sm:p-6 md:p-8 mb-10 md:mb-12">
             <ExpenseChart materials={materials.map(m => ({
               name: m.name,
               quantity: m.quantity,
@@ -353,8 +358,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
         {/* Materials Section */}
         <div className="mb-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-display text-2xl">DAFTAR KEBUTUHAN</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <h2 className="text-display text-xl sm:text-2xl">DAFTAR KEBUTUHAN</h2>
             <Button
               onClick={() => setShowAddMaterial(!showAddMaterial)}
               className="border-2 border-white bg-white/10 text-white hover:bg-white hover:text-brand-blue"
@@ -364,7 +369,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </div>
 
           {showAddMaterial && (
-            <div className="border-2 border-white/20 bg-card/50 p-6 md:p-8 mb-6">
+            <div className="border-2 border-white/20 bg-card/50 p-4 sm:p-6 md:p-8 mb-6">
               <AddMaterialForm
                 onAdd={(material) => {
                   handleAddMaterial(material.name, material.quantity, material.unitPrice, material.category)
@@ -410,7 +415,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             </div>
           ) : materials.length === 0 ? (
             <div className="border-2 border-white/20 bg-card/50 p-8 text-center">
-              <p className="text-white/60 mb-4">Belum ada kebutuhan yang ditambahkan</p>
+              <p className="text-white/85 mb-4">Belum ada kebutuhan yang ditambahkan</p>
               <Button
                 onClick={() => setShowAddMaterial(true)}
                 className="border-2 border-white text-white hover:bg-white hover:text-brand-blue"

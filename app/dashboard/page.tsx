@@ -182,16 +182,16 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground paper-texture">
+    <main className="min-h-screen overflow-x-clip bg-background text-foreground paper-texture">
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(189,235,234,.28),transparent_38%)] pointer-events-none" />
       <BrowserWarning />
 
       {/* Header */}
-      <header className="relative z-10 border-b border-border/70 sticky top-0 bg-background/85 backdrop-blur-md">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-display text-4xl md:text-5xl text-primary">EstiMate</h1>
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-md">
+        <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-display text-3xl sm:text-4xl md:text-5xl text-primary">EstiMate</h1>
               <p className="text-label text-muted-foreground">Ruang tenang untuk mengatur kebutuhanmu</p>
             </div>
             <div className="flex items-center gap-4">
@@ -213,7 +213,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="relative z-10 container mx-auto px-6 py-12">
+      <div className="relative z-0 container mx-auto px-4 sm:px-6 py-8 md:py-12">
         {/* New Project Section */}
         {!showNewProject ? (
           <div className="mb-12">
