@@ -56,6 +56,7 @@ export function TemplateSelector({ selected, onSelect }: TemplateSelectorProps) 
                 maximumFractionDigits: 0,
               }).format(template.budget)}
             </div>
+            <p className="mt-1 text-xs leading-snug text-muted-foreground">Contoh anggaran awal · bisa diubah</p>
           </div>
         ))}
       </div>

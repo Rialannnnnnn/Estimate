@@ -38,18 +38,18 @@ export function TemplatePreview({ template, isOpen, onClose }: TemplatePreviewPr
           {/* Budget Summary */}
           <div className="grid grid-cols-2 gap-4">
             <div className="border-2 border-white/20 p-4">
-              <p className="text-label text-foreground/60 mb-2">DANA TEMPLATE</p>
+              <p className="text-label text-foreground/60 mb-2">CONTOH ANGGARAN AWAL</p>
               <p className="text-display text-xl text-foreground">{formatCurrency(template.budget)}</p>
             </div>
             <div className="border-2 border-white/20 p-4">
-              <p className="text-label text-foreground/60 mb-2">ESTIMASI TOTAL</p>
+              <p className="text-label text-foreground/60 mb-2">TOTAL ITEM CONTOH</p>
               <p className="text-display text-xl text-foreground">{formatCurrency(totalEstimatedPrice)}</p>
             </div>
           </div>
 
           {/* Default Items */}
           <div>
-            <h3 className="text-label text-foreground/60 mb-4">ITEM YANG OTOMATIS DITAMBAHKAN</h3>
+            <h3 className="text-label text-foreground/60 mb-4">CONTOH DAFTAR KEBUTUHAN</h3>
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {template.defaultItems.map((item, idx) => {
                 const itemTotal = item.quantity * item.unitPrice
@@ -64,7 +64,7 @@ export function TemplatePreview({ template, isOpen, onClose }: TemplatePreviewPr
                       </div>
                       <div className="flex items-center gap-4 text-xs text-foreground/60">
                         <span>Qty: <strong className="text-foreground">{item.quantity}</strong></span>
-                        <span>Harga Unit: <strong className="text-foreground">{formatCurrency(item.unitPrice)}</strong></span>
+                        <span>Estimasi harga / unit: <strong className="text-foreground">{formatCurrency(item.unitPrice)}</strong></span>
                       </div>
                     </div>
                     <div className="text-right">
@@ -79,7 +79,7 @@ export function TemplatePreview({ template, isOpen, onClose }: TemplatePreviewPr
           {/* Info */}
           <div className="bg-white/5 border-2 border-white/10 p-4 text-sm text-foreground/70">
             <p>
-              <strong>Catatan:</strong> Ketika Anda membuat proyek dengan template ini, semua item di atas akan otomatis ditambahkan. Anda dapat menambah, menghapus, atau memodifikasi item sesuai kebutuhan setelah proyek dibuat.
+              <strong>Catatan:</strong> Nominal template ini hanyalah contoh anggaran awal, bukan biaya standar atau jumlah yang harus dihabiskan. Saat membuat rencana, kamu bebas memasukkan budget sendiri. Daftar di atas merupakan contoh item; hasil Generate bisa berbeda sesuai konteks, periode, dan deskripsi opsional. Semua harga adalah estimasi umum, bukan harga pasar real-time, dan dapat diedit sebelum disimpan.
             </p>
           </div>
         </div>

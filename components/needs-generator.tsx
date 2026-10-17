@@ -12,6 +12,7 @@ type Props = {
   period: 'daily' | 'monthly'
   templateType?: TemplateType | null
   budgetLimit?: number | null
+  isExampleBudget?: boolean
   initialCriteria: string
   initialItems: Material[]
   onConfirm: (items: Material[]) => void
@@ -22,7 +23,7 @@ type ReviewItem = Material & { priority?: Priority; reason?: string }
 
 const rupiah = (value: number) => `Rp ${value.toLocaleString('id-ID')}`
 
-export function NeedsGenerator({ period, templateType, budgetLimit, initialCriteria, initialItems, onConfirm, onBack }: Props) {
+export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBudget = false, initialCriteria, initialItems, onConfirm, onBack }: Props) {
   const [criteria, setCriteria] = useState(initialCriteria)
   const [items, setItems] = useState<ReviewItem[]>(initialItems)
   const [contexts, setContexts] = useState<DetectedContext[]>([])
@@ -34,6 +35,13 @@ export function NeedsGenerator({ period, templateType, budgetLimit, initialCrite
 
   const update = (index: number, patch: Partial<ReviewItem>) => setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item))
   const addItem = () => setItems((current) => [...current, { id: `custom-${Date.now()}`, name: 'Kebutuhan baru', category: 'Lainnya · unit', quantity: 1, unitPrice: 0, actualPrice: null, isPurchased: false, priority: 'essential', reason: 'ditambahkan manual' }])
+  const applySuggestion = (id: string, kind: 'remove' | 'reduce', newQuantity?: number) => {
+    setItems((current) => kind === 'remove'
+      ? current.filter((item) => (item.id ?? item.name) !== id)
+      : current.map((item) => (item.id ?? item.name) === id && newQuantity && newQuantity >= 1
+        ? { ...item, quantity: newQuantity }
+        : item))
+  }
   const runGenerate = () => {
     const result = generateRecommendations({ description: criteria, period, templateType })
     setItems(result.items)
@@ -44,6 +52,11 @@ export function NeedsGenerator({ period, templateType, budgetLimit, initialCrite
   return (
     <section className="border border-border/70 bg-card/90 rounded-3xl p-6 md:p-8 shadow-[0_18px_60px_rgba(23,59,88,.07)]">
       <div className="flex items-start justify-between gap-4 mb-7"><div><p className="text-label font-bold text-primary mb-2 flex items-center gap-2"><Sparkles className="h-4 w-4" /> RINCI KEBUTUHAN</p><h2 className="text-2xl md:text-3xl font-semibold">Apa saja yang perlu dibeli?</h2><p className="text-sm text-muted-foreground mt-2 max-w-2xl text-pretty">Ceritakan situasimu: kegiatan, tempat tinggal, transportasi, atau barang yang kamu pikirkan. EstiMate mencocokkan kata kunci dan template yang kamu pilih dengan daftar rekomendasi, lalu memecahnya menjadi item dengan kuantitas, satuan, dan harga per satuan.</p></div><span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-primary">{period === 'daily' ? 'Harian' : 'Bulanan'}</span></div>
+      <p className="mb-3 rounded-2xl border border-border/70 bg-secondary px-4 py-3 text-sm text-primary" role="note">
+        {isExampleBudget
+          ? `Batas anggaran sementara: ${budget ? rupiah(budget) : 'belum ada'} (contoh dari template). Kembali ke form untuk memasukkan budget kamu sendiri.`
+          : `Batas anggaran pilihanmu: ${budget ? rupiah(budget) : 'belum ada'}. Rekomendasi tidak wajib menghabiskan seluruh budget.`}
+      </p>
       <textarea value={criteria} onChange={(event) => setCriteria(event.target.value)} aria-label="Deskripsi kebutuhan" placeholder="Contoh: aku mahasiswa desain, bulan ini banyak tugas maket dan harus print 3 laporan. Ke kampus naik ojek." className="min-h-28 w-full resize-y rounded-2xl border border-border bg-background p-4 text-sm leading-relaxed outline-none focus:border-primary" />
       <div className="mt-4 flex flex-wrap gap-3"><Button onClick={runGenerate} className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"><RefreshCw className="mr-2 h-4 w-4" /> Generate item belanja</Button><Button variant="ghost" onClick={onBack} className="rounded-full">Kembali ubah rencana</Button></div>
 
@@ -63,7 +76,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, initialCrite
 
       {items.length > 0 && <div className="mt-8 border-t border-border/70 pt-7">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><h3 className="font-semibold">Review item belanja</h3><p className="text-sm text-muted-foreground">Harga adalah estimasi per satuan. Kamu masih bisa mengubah semuanya.</p></div><p className="font-mono text-sm text-primary">Total estimasi {rupiah(total)}</p></div>
-        <p className="mb-4 flex items-start gap-2 rounded-2xl bg-secondary px-4 py-3 text-xs leading-relaxed text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" /><span>Rekomendasi dibuat dengan aturan kata kunci, bukan AI. Harga adalah perkiraan umum, bukan harga pasar real-time. Sesuaikan dengan harga di tempatmu.</span></p>
+        <p className="mb-4 flex items-start gap-2 rounded-2xl bg-secondary px-4 py-3 text-xs leading-relaxed text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" /><span>Rekomendasi dibuat dengan aturan kata kunci, bukan AI. Nominal harga adalah estimasi umum, bukan harga pasar real-time atau harga baku. Sesuaikan dengan lokasi, satuan, dan waktu belanjamu.</span></p>
         <div className="space-y-3">{items.map((item, index) => {
           const isOptional = item.priority === 'optional'
           return (
@@ -83,17 +96,23 @@ export function NeedsGenerator({ period, templateType, budgetLimit, initialCrite
         {analysis.status === 'over' && (
           <div className="mt-6 rounded-2xl border border-danger-border bg-danger-soft p-4 text-danger-text" role="status">
             <p className="font-semibold">Melebihi budget {rupiah(analysis.budget)} sebesar {rupiah(analysis.over)}</p>
-            <p className="mt-1 text-sm opacity-90">Tidak ada item yang dihapus otomatis. Pertimbangkan saran berikut, lalu ubah sendiri di daftar di atas:</p>
+            <p className="mt-1 text-sm opacity-90">Saran hemat disesuaikan dengan batas budgetmu dan tidak diterapkan otomatis. Cek kebutuhan penting sebelum menyetujui perubahan:</p>
             {analysis.suggestions.length > 0 ? (
               <ul className="mt-3 flex flex-col gap-1.5 text-sm">
                 {analysis.suggestions.map((suggestion) => (
-                  <li key={`${suggestion.kind}-${suggestion.id}`}>
-                    {suggestion.kind === 'remove' ? `Tunda "${suggestion.name}" (opsional)` : `Kurangi "${suggestion.name}" menjadi ${suggestion.newQuantity}`} <span className="font-mono">, hemat {rupiah(suggestion.saving)}</span>
+                  <li key={`${suggestion.kind}-${suggestion.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-danger-border/60 px-3 py-2">
+                    <span>
+                      {suggestion.kind === 'remove' ? `Pertimbangkan menunda "${suggestion.name}" (opsional)` : `Pertimbangkan mengurangi "${suggestion.name}" menjadi ${suggestion.newQuantity}`}
+                      <span className="font-mono"> · potensi hemat {rupiah(suggestion.saving)}</span>
+                    </span>
+                    <Button type="button" size="sm" variant="outline" className="rounded-full border-danger-border bg-card text-danger-text hover:bg-danger-soft" onClick={() => applySuggestion(suggestion.id, suggestion.kind, suggestion.newQuantity)}>
+                      Terapkan saran
+                    </Button>
                   </li>
                 ))}
               </ul>
             ) : <p className="mt-3 text-sm">Tandai item yang bisa ditunda sebagai Opsional untuk melihat saran pengurangan.</p>}
-            {analysis.stillOverAfterSuggestions > 0 && <p className="mt-3 text-sm">Setelah saran di atas masih kurang {rupiah(analysis.stillOverAfterSuggestions)}. Coba sesuaikan harga atau naikkan batas budget.</p>}
+            {analysis.stillOverAfterSuggestions > 0 && <p className="mt-3 text-sm">Bahkan jika seluruh saran diterapkan, estimasi masih lebih tinggi {rupiah(analysis.stillOverAfterSuggestions)}. Periksa kebutuhan minimum, cari alternatif yang lebih hemat, atau sesuaikan batas budget. Jangan mengurangi kebutuhan pokok hanya agar angka terlihat pas.</p>}
           </div>
         )}
 
