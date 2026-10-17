@@ -80,7 +80,7 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
 
   if (isEditing) {
     return (
-      <div className="bg-card p-6 border border-border/50">
+      <div className="rounded-2xl bg-card p-4 sm:p-6 border border-soft-blue text-ink">
         <div className="space-y-4">
           <Input
             value={editName}
@@ -135,8 +135,8 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
   return (
     <div
       className={cn(
-        'bg-card p-4 sm:p-6 border border-border/50 transition-all group',
-        material.isPurchased && 'bg-success/10 border-l-4 border-l-success'
+        'rounded-2xl bg-card p-4 sm:p-6 border border-soft-blue text-ink shadow-[0_4px_14px_rgba(15,46,71,0.10)] transition-colors group',
+        material.isPurchased && 'bg-ice-blue'
       )}
     >
       <div className="flex items-start gap-3 sm:gap-4">

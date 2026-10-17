@@ -236,7 +236,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
       <BrowserWarning />
 
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-white/15 bg-brand-blue/95 backdrop-blur supports-[backdrop-filter]:bg-brand-blue/85">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-brand-blue/95 backdrop-blur supports-[backdrop-filter]:bg-brand-blue/85">
         <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center gap-3 sm:gap-4">
             <Link href="/dashboard" aria-label="Kembali ke dashboard" className="shrink-0">
@@ -333,10 +333,10 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             ].map((stat) => (
               <div
                 key={stat.label}
-                className="flex min-w-0 items-center justify-between gap-3 border-2 border-white/25 p-4 sm:flex-col sm:justify-center sm:text-center"
+                className="flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-soft-blue bg-ice-blue p-4 text-ink shadow-[0_4px_14px_rgba(15,46,71,0.12)] sm:flex-col sm:justify-center sm:text-center"
               >
-                <p className="text-label text-white/85 sm:mb-1">{stat.label}</p>
-                <p className="text-display text-lg sm:text-base lg:text-xl min-w-0 break-words">{stat.value}</p>
+                <p className="text-label text-ink-muted sm:mb-1">{stat.label}</p>
+                <p className="text-display text-lg sm:text-base lg:text-xl min-w-0 break-words text-primary">{stat.value}</p>
               </div>
             ))}
           </div>
@@ -344,7 +344,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
         {/* Expense Chart */}
         {materials.length > 0 && (
-          <div className="border-2 border-white/20 bg-card/50 p-4 sm:p-6 md:p-8 mb-10 md:mb-12">
+          <div className="mb-10 rounded-2xl border border-soft-blue bg-card p-4 text-ink shadow-[0_8px_24px_rgba(15,46,71,0.16)] sm:p-6 md:mb-12 md:p-8">
             <ExpenseChart materials={materials.map(m => ({
               name: m.name,
               quantity: m.quantity,
@@ -362,14 +362,14 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             <h2 className="text-display text-xl sm:text-2xl">DAFTAR KEBUTUHAN</h2>
             <Button
               onClick={() => setShowAddMaterial(!showAddMaterial)}
-              className="border-2 border-white bg-white/10 text-white hover:bg-white hover:text-brand-blue"
+              className="rounded-full border border-white/30 bg-white text-primary hover:bg-soft-blue"
             >
               <Settings className="w-4 h-4 mr-2" /> Tambah
             </Button>
           </div>
 
           {showAddMaterial && (
-            <div className="border-2 border-white/20 bg-card/50 p-4 sm:p-6 md:p-8 mb-6">
+            <div className="mb-6 rounded-2xl border border-soft-blue bg-card p-4 text-ink sm:p-6 md:p-8">
               <AddMaterialForm
                 onAdd={(material) => {
                   handleAddMaterial(material.name, material.quantity, material.unitPrice, material.category)
@@ -397,7 +397,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                   placeholder="Cari kebutuhan..."
                   autoComplete="off"
                   aria-describedby="material-search-hint"
-                  className="h-12 border-2 border-brand-light bg-brand-light pl-11 text-base font-medium text-brand-dark shadow-sm placeholder:text-brand-dark/70 focus-visible:border-brand-light focus-visible:ring-4 focus-visible:ring-brand-light/40 dark:bg-brand-light dark:text-brand-dark"
+                  className="h-12 rounded-xl border border-soft-blue bg-card pl-11 text-base font-medium text-ink shadow-sm placeholder:text-ink-muted focus-visible:border-brand-secondary focus-visible:ring-4 focus-visible:ring-soft-blue/50 dark:bg-card dark:text-ink"
                 />
               </div>
               <p id="material-search-hint" className="text-sm leading-relaxed text-white/85">
@@ -407,7 +407,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           )}
 
           {materials.length > 0 && filteredMaterials.length === 0 ? (
-            <div className="flex flex-col gap-2 border-2 border-white/40 bg-card p-8 text-center" role="status">
+            <div className="flex flex-col gap-2 rounded-2xl border border-soft-blue bg-card p-8 text-center" role="status">
               <p className="text-base font-semibold text-card-foreground">Tidak ada kebutuhan yang cocok.</p>
               <p className="text-sm leading-relaxed text-card-foreground/85 text-pretty">
                 Coba gunakan nama barang, kategori, status pembelian, atau rentang harga.

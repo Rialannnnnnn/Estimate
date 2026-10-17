@@ -28,19 +28,19 @@ export function BudgetIndicator({
   const isDanger = status === 'danger'
 
   const strongText = isDanger ? 'text-danger-text' : 'text-white'
-  const labelText = isDanger ? 'text-danger-text/85' : 'text-white/90'
-  const percentText = isDanger ? 'text-danger' : 'text-white/60'
-  const trackBg = isDanger ? 'bg-danger/25' : 'bg-white/25'
+  const labelText = isDanger ? 'text-danger-text/80' : 'text-white/90'
+  const percentText = isDanger ? 'text-danger' : 'text-white/75'
+  const trackBg = isDanger ? 'bg-danger-border/60' : 'bg-white/25'
   const fillBg = isDanger ? 'bg-danger' : 'bg-white'
-  const dividerBorder = isDanger ? 'border-danger/30' : 'border-white/25'
+  const dividerBorder = isDanger ? 'border-danger-border' : 'border-white/25'
 
   return (
     <div
       className={cn(
-        'p-4 sm:p-6 border transition-colors',
-        status === 'safe' && 'bg-success border-border/50',
-        status === 'warning' && 'bg-warning border-border/50',
-        isDanger && 'bg-danger-soft border-danger/50',
+        'rounded-2xl border p-4 shadow-[0_8px_24px_rgba(15,46,71,0.18)] transition-colors sm:p-6',
+        status === 'safe' && 'bg-success border-white/15',
+        status === 'warning' && 'bg-warning border-white/15',
+        isDanger && 'bg-danger-soft border-danger-border',
         className
       )}
     >
@@ -58,7 +58,7 @@ export function BudgetIndicator({
 
       {/* Progress Bar */}
       <div
-        className={cn('h-2 overflow-hidden mb-4', trackBg)}
+        className={cn('h-2 overflow-hidden rounded-full mb-4', trackBg)}
         role="progressbar"
         aria-valuenow={Math.round(percentage)}
         aria-valuemin={0}
@@ -66,7 +66,7 @@ export function BudgetIndicator({
         aria-label="Penggunaan budget"
       >
         <div
-          className={cn('h-full transition-all duration-300', fillBg)}
+          className={cn('h-full rounded-full transition-all duration-300', fillBg)}
           style={{ width: `${Math.min(percentage, 100)}%` }}
         />
       </div>
