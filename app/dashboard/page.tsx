@@ -9,6 +9,7 @@ import { BrowserWarning } from '@/components/browser-warning'
 import { ProjectCard } from '@/components/project-card'
 import { TemplateSelector } from '@/components/template-selector'
 import { NeedsGenerator } from '@/components/needs-generator'
+import { DashboardAside } from '@/components/dashboard-aside'
 import { Input } from '@/components/ui/input'
 import { ArrowRight, LogOut, Plus, Search } from 'lucide-react'
 import type { Material } from '@/lib/types'
@@ -183,7 +184,11 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen overflow-x-clip bg-background text-foreground paper-texture">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(220,234,242,.65),transparent_38%)] pointer-events-none" />
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-ice-blue/50 via-background to-secondary/40" />
+        <div className="absolute -right-32 top-24 h-96 w-96 rounded-full bg-soft-blue/30 blur-3xl" />
+        <div className="absolute -bottom-40 right-1/4 hidden h-80 w-80 rounded-full bg-secondary/50 blur-3xl md:block" />
+      </div>
       <BrowserWarning />
 
       {/* Header */}
@@ -297,8 +302,9 @@ export default function DashboardPage() {
           </div>
         )}
 
+        <div className="grid gap-10 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
         {/* Projects Grid */}
-        <section>
+        <section className="min-w-0">
           <div className="mb-8">
             <span className="text-label text-muted-foreground">Rencana Budgetmu</span>
             <h2 className="text-3xl font-bold mt-1">
@@ -336,7 +342,7 @@ export default function DashboardPage() {
               <p className="text-muted-foreground text-lg">Tidak ada rencana yang cocok dengan pencarianmu.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3 gap-5">
               {filteredProjects.map((project) => (
                 <ProjectCard
                   key={project.id}
@@ -351,6 +357,9 @@ export default function DashboardPage() {
             </div>
           )}
         </section>
+
+        <DashboardAside displayName={displayName} />
+        </div>
       </div>
     </main>
   )
