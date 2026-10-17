@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -76,6 +77,12 @@ export function LoginForm({ initialError }: { initialError?: string }) {
           onChange={(e) => setPassword(e.target.value)}
           className="h-12 rounded-xl border border-border bg-background text-foreground"
         />
+      </div>
+
+      <div className="-mt-3 text-right">
+        <Link href="/auth/forgot-password" className="text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:underline">
+          Lupa password?
+        </Link>
       </div>
 
       {error && (
