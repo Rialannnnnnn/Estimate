@@ -471,22 +471,33 @@ export function analyzeBudget(items: AnalyzableItem[], budget: number | null): B
   const suggestions: BudgetSuggestion[] = []
   let covered = 0
 
-  const optional = items.filter((item) => item.priority === 'optional').sort((a, b) => itemTotal(b) - itemTotal(a))
+  const optional = items.filter((item) => item.priority === 'optional' && item.unitPrice > 0).sort((a, b) => itemTotal(b) - itemTotal(a))
   const optionalTotal = optional.reduce((sum, item) => sum + itemTotal(item), 0)
   for (const item of optional) {
     if (covered >= over) break
-    const saving = itemTotal(item)
-    suggestions.push({ id: item.id ?? item.name, kind: 'remove', name: item.name, saving })
+    const remainingGap = over - covered
+    // Propose cutting just enough optional units when possible instead of dropping the entire item.
+    const cut = Math.min(item.quantity, Math.ceil(remainingGap / item.unitPrice))
+    if (cut <= 0) continue
+    const saving = cut * item.unitPrice
+    if (cut < item.quantity) {
+      suggestions.push({ id: item.id ?? item.name, kind: 'reduce', name: item.name, saving, newQuantity: item.quantity - cut })
+    } else {
+      suggestions.push({ id: item.id ?? item.name, kind: 'remove', name: item.name, saving })
+    }
     covered += saving
   }
 
   if (covered < over) {
+    // Essential quantities require user judgment: suggest at most a 25% reduction,
+    // always keep at least one unit, and never apply changes without confirmation.
     const reducible = items
       .filter((item) => item.priority !== 'optional' && item.quantity > 1 && item.unitPrice > 0)
       .sort((a, b) => itemTotal(b) - itemTotal(a))
     for (const item of reducible) {
       if (covered >= over) break
-      const maxCut = Math.max(1, Math.floor(item.quantity * 0.25))
+      const maxCut = Math.min(item.quantity - 1, Math.floor(item.quantity * 0.25))
+      if (maxCut <= 0) continue
       const cut = Math.min(maxCut, Math.ceil((over - covered) / item.unitPrice))
       const saving = cut * item.unitPrice
       suggestions.push({ id: item.id ?? item.name, kind: 'reduce', name: item.name, saving, newQuantity: item.quantity - cut })
