@@ -249,6 +249,8 @@ export default function DashboardPage() {
             {showNeedsGenerator && (
               <NeedsGenerator
                 period={planningPeriod}
+                templateType={selectedTemplate}
+                budgetLimit={Number(budgetLimit) > 0 ? Number(budgetLimit) : selectedTemplate ? templates[selectedTemplate].budget : null}
                 initialCriteria={criteria}
                 initialItems={generatedNeeds}
                 onConfirm={(items) => {
