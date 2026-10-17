@@ -51,7 +51,7 @@ export function ProjectCard({
       href={`/dashboard/project/${id}`}
       className="group block h-full rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <div className="surface-card h-full rounded-3xl bg-brand-blue border border-white/15 p-6 flex flex-col justify-between cursor-pointer hover:border-white/30 hover:brightness-110 hover:shadow-[0_16px_36px_rgba(15,46,71,.22)]">
+      <div className="surface-card h-full rounded-3xl bg-brand-blue border border-white/15 p-6 flex flex-col justify-between cursor-pointer shadow-[0_6px_18px_rgba(15,46,71,.16)] hover:border-white/25 hover:brightness-[1.06] hover:shadow-[0_14px_32px_rgba(15,46,71,.24)]">
         <div className="mb-6">
           <div className="flex items-start justify-between mb-4">
             <h3 className="text-white font-bold text-lg line-clamp-2 flex-1">{name}</h3>

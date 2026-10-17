@@ -8,8 +8,8 @@ const reminders = [
 
 export function DashboardAside({ displayName }: { displayName: string }) {
   return (
-    <aside aria-label="Pengingat budget" className="xl:sticky xl:top-28">
-      <div className="surface-card rounded-3xl border border-soft-blue bg-card p-6 hover:border-brand-secondary/30">
+    <aside aria-label="Pengingat budget" className="min-w-0 lg:sticky lg:top-28">
+      <div className="surface-card rounded-3xl border border-soft-blue bg-card p-6 hover:border-brand-secondary/30 hover:bg-popover">
         <p className="text-label text-muted-foreground">Selamat datang</p>
         <p className="mt-1 truncate text-lg font-semibold text-foreground">{displayName}</p>
         <p className="mt-3 text-pretty text-sm leading-relaxed text-muted-foreground">

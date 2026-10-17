@@ -4,9 +4,9 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #E3ECF4;
+  --background: #E6EFF7;
   --foreground: #17324D;
-  --card: #F8FBFD;
+  --card: #F9FBFE;
   --card-foreground: #17324D;
   --popover: #FFFFFF;
   --popover-foreground: #17324D;
@@ -56,6 +56,8 @@
   --ink: #17324D;
   --ink-muted: #607D98;
   --grid-line: rgba(237, 245, 250, 0.035);
+  --dot: rgba(23, 63, 95, 0.05);
+  --page-top: #F0F6FC;
 }
 
 .dark {
@@ -95,6 +97,8 @@
   --ice-blue: #1D4A6E;
   --ink: #F4F8FB;
   --ink-muted: #B4CCDD;
+  --dot: rgba(220, 234, 242, 0.04);
+  --page-top: #133858;
 }
 
 @theme inline {
@@ -173,6 +177,12 @@
   }
   .paper-texture {
     background-image: linear-gradient(rgba(255,255,255,.18), rgba(255,255,255,.18)), url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E");
+  }
+  .workspace-bg {
+    background-color: var(--background);
+    background-image: radial-gradient(var(--dot) 1px, transparent 1px), linear-gradient(to bottom, var(--page-top), var(--background) 420px);
+    background-size: 22px 22px, 100% 100%;
+    background-attachment: fixed, scroll;
   }
   .surface-card {
     box-shadow: 0 1px 2px rgba(23, 63, 95, .04), 0 8px 24px rgba(23, 63, 95, .06);
