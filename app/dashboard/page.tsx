@@ -244,13 +244,14 @@ export default function DashboardPage() {
             <div className="mb-6">
               <p className="text-label font-bold text-primary mb-2">MULAI DARI KONTEKSMU</p>
               <h2 className="text-2xl font-semibold text-foreground">Apa yang perlu kamu siapkan?</h2>
-              <p className="text-sm text-muted-foreground mt-2">Pilih pola kebutuhan sebagai titik awal. Semua barang, jumlah, dan harga bisa kamu ubah setelahnya.</p>
+              <p className="text-sm text-muted-foreground mt-2">Pilih pola kebutuhan sebagai titik awal. Nominal pada template hanya contoh anggaran awal, bukan jumlah yang wajib dihabiskan. Semua item, jumlah, dan harga bisa kamu ubah.</p>
             </div>
             {showNeedsGenerator && (
               <NeedsGenerator
                 period={planningPeriod}
                 templateType={selectedTemplate}
                 budgetLimit={Number(budgetLimit) > 0 ? Number(budgetLimit) : selectedTemplate ? templates[selectedTemplate].budget : null}
+                isExampleBudget={!(Number(budgetLimit) > 0)}
                 initialCriteria={criteria}
                 initialItems={generatedNeeds}
                 onConfirm={(items) => {
@@ -260,7 +261,10 @@ export default function DashboardPage() {
                 onBack={() => setShowNeedsGenerator(false)}
               />
             )}
-            {!showNeedsGenerator && <TemplateSelector selected={selectedTemplate} onSelect={setSelectedTemplate} />}
+            {!showNeedsGenerator && <TemplateSelector selected={selectedTemplate} onSelect={(type) => {
+              setSelectedTemplate(type)
+              setPlanningPeriod(type === 'harian-dasar' ? 'daily' : 'monthly')
+            }} />}
 
             <div className="mt-8 grid gap-4 md:grid-cols-3">
               <div>
@@ -271,8 +275,9 @@ export default function DashboardPage() {
                 </select>
               </div>
               <div>
-                <label className="text-label block mb-2">Batas budget opsional</label>
-                <Input type="number" min="0" value={budgetLimit} onChange={(e) => setBudgetLimit(e.target.value)} placeholder={planningPeriod === 'daily' ? 'Contoh: 75000' : 'Contoh: 2500000'} className="h-12 rounded-xl border border-border bg-background text-foreground" />
+                <label htmlFor="budget-limit" className="text-label block mb-2">Batas budget kamu (opsional)</label>
+                <Input id="budget-limit" type="number" min="0" value={budgetLimit} onChange={(e) => setBudgetLimit(e.target.value)} placeholder={planningPeriod === 'daily' ? 'Contoh: 75000' : 'Contoh: 2500000'} className="h-12 rounded-xl border border-border bg-background text-foreground" />
+                <p className="mt-2 text-xs text-muted-foreground">Kosongkan untuk memakai contoh anggaran dari template. Angka ini bebas diubah dan tidak harus dihabiskan.</p>
               </div>
               <div>
                 <label className="text-label block mb-2">Nama Rencana Budget</label>
