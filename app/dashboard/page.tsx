@@ -185,14 +185,12 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen overflow-x-clip bg-background text-foreground paper-texture">
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-ice-blue/50 via-background to-secondary/40" />
-        <div className="absolute -right-32 top-24 h-96 w-96 rounded-full bg-soft-blue/30 blur-3xl" />
-        <div className="absolute -bottom-40 right-1/4 hidden h-80 w-80 rounded-full bg-secondary/50 blur-3xl md:block" />
+        <div className="absolute inset-0 bg-gradient-to-b from-ice-blue/70 via-background to-secondary/60" />
       </div>
       <BrowserWarning />
 
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-soft-blue bg-ice-blue/85 backdrop-blur-md">
         <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -208,7 +206,7 @@ export default function DashboardPage() {
                 onClick={() => void handleLogout()}
                 disabled={loggingOut}
                 variant="outline"
-                className="rounded-full border border-primary/20 bg-card font-semibold text-primary hover:bg-secondary"
+                className="rounded-full border border-primary/20 bg-card font-semibold text-primary shadow-sm transition-all duration-200 hover:border-primary/35 hover:bg-secondary hover:text-primary hover:shadow-md"
               >
                 <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
                 {loggingOut ? 'Keluar...' : 'Logout'}
@@ -224,13 +222,13 @@ export default function DashboardPage() {
           <div className="mb-12">
             <Button
               onClick={() => setShowNewProject(true)}
-              className="w-full md:w-auto px-8 py-4 bg-primary text-primary-foreground border border-primary font-bold text-lg hover:bg-primary/90 rounded-full"
+              className="w-full md:w-auto px-8 py-4 bg-primary text-primary-foreground border border-primary font-bold text-lg rounded-full shadow-[0_6px_18px_rgba(23,63,95,.18)] transition-all duration-200 hover:bg-brand-main hover:border-brand-main hover:shadow-[0_10px_26px_rgba(23,63,95,.24)] motion-safe:hover:-translate-y-0.5"
             >
               <Plus className="w-5 h-5 mr-2" /> Rencana Budget Baru
             </Button>
           </div>
         ) : (
-          <div className="border border-border/70 bg-card/85 p-6 md:p-8 mb-12 rounded-3xl shadow-[0_18px_60px_rgba(23,59,88,.07)] backdrop-blur">
+          <div className="border border-soft-blue bg-card p-6 md:p-8 mb-12 rounded-3xl shadow-[0_1px_2px_rgba(23,63,95,.04),0_12px_36px_rgba(23,63,95,.08)]">
             <div className="mb-6">
               <p className="text-label font-bold text-primary mb-2">MULAI DARI KONTEKSMU</p>
               <h2 className="text-2xl font-semibold text-foreground">Apa yang perlu kamu siapkan?</h2>
@@ -328,17 +326,17 @@ export default function DashboardPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari rencana budget..."
                 autoComplete="off"
-                className="h-12 rounded-full border border-border bg-card pl-11 text-foreground placeholder:text-muted-foreground"
+                className="h-12 rounded-full border border-soft-blue bg-card pl-11 text-foreground shadow-sm transition-colors duration-200 placeholder:text-muted-foreground hover:border-brand-secondary/40 focus-visible:border-brand-secondary/60"
               />
             </div>
           )}
 
           {projects.length === 0 ? (
-            <div className="border border-dashed border-border p-12 text-center rounded-3xl bg-card/60">
+            <div className="border border-dashed border-border p-12 text-center rounded-3xl bg-ice-blue/80 transition-colors duration-200 hover:border-brand-secondary/40 hover:bg-ice-blue">
               <p className="text-muted-foreground text-lg">Belum ada rencana budget. Mulai dari kebutuhan yang paling penting.</p>
             </div>
           ) : filteredProjects.length === 0 ? (
-            <div className="border border-dashed border-border p-12 text-center rounded-3xl bg-card/60" role="status">
+            <div className="border border-dashed border-border p-12 text-center rounded-3xl bg-ice-blue/80 transition-colors duration-200 hover:border-brand-secondary/40 hover:bg-ice-blue" role="status">
               <p className="text-muted-foreground text-lg">Tidak ada rencana yang cocok dengan pencarianmu.</p>
             </div>
           ) : (
