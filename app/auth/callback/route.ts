@@ -10,7 +10,11 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
-      return NextResponse.redirect(`${origin}/dashboard`)
+      // Only permit the recovery destination explicitly; never redirect to arbitrary URLs.
+      const destination = searchParams.get('next') === '/auth/update-password'
+        ? '/auth/update-password'
+        : '/dashboard'
+      return NextResponse.redirect(`${origin}${destination}`)
     }
   }
 
