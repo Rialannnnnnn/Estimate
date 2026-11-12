@@ -200,6 +200,9 @@ export default function DashboardPage() {
                 <span className="text-label block text-muted-foreground">Masuk sebagai</span>
                 <span className="text-sm font-semibold text-foreground">{displayName}</span>
               </div>
+              <Link href="/dashboard/personal" className="rounded-full border border-primary/20 bg-card px-4 py-2 text-sm font-semibold text-primary transition hover:bg-secondary">
+                Keuangan personal
+              </Link>
               <Button
                 onClick={() => void handleLogout()}
                 disabled={loggingOut}
@@ -212,7 +215,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </header>
+      <Link href="/dashboard/personal" className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">Keuangan personal</Link></header>
 
       <div className="relative z-0 mx-auto w-full max-w-[1200px] px-4 sm:px-6 py-8 md:py-10">
         <section aria-labelledby="overview-heading" className="mb-8 flex flex-col gap-6">
