@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getSupabaseClientErrorMessage } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { BrowserWarning } from '@/components/browser-warning'
 import { ProjectCard } from '@/components/project-card'
@@ -28,7 +28,8 @@ interface Project {
 
 export default function DashboardPage() {
   const router = useRouter()
-  const supabase = createClient()
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
   const [user, setUser] = useState<any>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,25 +46,56 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        setLoading(false)
-        return
-      }
-
-      setUser(user)
-      await fetchProjects(user.id)
+    try {
+      setSupabase(createClient())
+    } catch (error) {
+      setAuthError(getSupabaseClientErrorMessage(
+        error,
+        'Autentikasi tidak dapat diinisialisasi. Coba muat ulang aplikasi.',
+      ))
       setLoading(false)
     }
+  }, [])
 
-    getUser()
-  }, [router, supabase])
+  useEffect(() => {
+    if (!supabase) return
+
+    let active = true
+    const getUser = async () => {
+      try {
+        const { data, error } = await supabase.auth.getUser()
+        if (error) throw error
+        if (!data.user || !active) return
+
+        setUser(data.user)
+        const { data: projectData, error: projectsError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('user_id', data.user.id)
+          .order('created_at', { ascending: false })
+
+        if (projectsError) throw projectsError
+        if (active && projectData) setProjects(projectData as Project[])
+      } catch (error) {
+        if (active) {
+          setAuthError(getSupabaseClientErrorMessage(
+            error,
+            'Sesi tidak dapat divalidasi. Masuk kembali untuk melanjutkan.',
+          ))
+        }
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    void getUser()
+    return () => {
+      active = false
+    }
+  }, [supabase])
 
   const fetchProjects = async (userId: string) => {
+    if (!supabase) return
     const { data, error } = await supabase
       .from('projects')
       .select('*')
@@ -76,7 +108,8 @@ export default function DashboardPage() {
   }
 
   const handleCreateProject = async (needsOverride?: Material[]) => {
-  if (!selectedTemplate || !projectName.trim()) return
+    if (!supabase || !selectedTemplate || !projectName.trim()) return
+
 
   if (!showNeedsGenerator) {
     setShowNeedsGenerator(true)
@@ -145,6 +178,7 @@ export default function DashboardPage() {
   }
 
   const handleDeleteProject = async (projectId: string) => {
+    if (!supabase || !user) return
     try {
       const { error } = await supabase.from('projects').delete().eq('id', projectId)
 
@@ -157,6 +191,7 @@ export default function DashboardPage() {
   }
 
   const handleLogout = async () => {
+    if (!supabase) return
     setLoggingOut(true)
     await supabase.auth.signOut()
     router.push('/auth/login')
@@ -171,6 +206,20 @@ export default function DashboardPage() {
   const filteredProjects = normalizedQuery
     ? projects.filter((project) => project.name.toLocaleLowerCase('id').includes(normalizedQuery))
     : projects
+
+  if (authError) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-brand-blue px-4 text-white">
+        <section role="alert" className="max-w-lg rounded-2xl border border-white/15 bg-white/10 p-6 text-center">
+          <h1 className="text-xl font-semibold">Autentikasi tidak tersedia</h1>
+          <p className="mt-3 text-sm text-white/80">{authError}</p>
+          <Link href="/auth/login" className="mt-5 inline-flex rounded-full bg-white px-5 py-2.5 font-medium text-brand-blue">
+            Kembali ke login
+          </Link>
+        </section>
+      </main>
+    )
+  }
 
   if (loading) {
     return (
@@ -200,6 +249,9 @@ export default function DashboardPage() {
                 <span className="text-label block text-muted-foreground">Masuk sebagai</span>
                 <span className="text-sm font-semibold text-foreground">{displayName}</span>
               </div>
+              <Link href="/dashboard/personal" className="rounded-full border border-primary/20 bg-card px-4 py-2 text-sm font-semibold text-primary transition hover:bg-secondary">
+                Keuangan personal
+              </Link>
               <Button
                 onClick={() => void handleLogout()}
                 disabled={loggingOut}
@@ -212,7 +264,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </header>
+      <Link href="/dashboard/personal" className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">Keuangan personal</Link></header>
 
       <div className="relative z-0 mx-auto w-full max-w-[1200px] px-4 sm:px-6 py-8 md:py-10">
         <section aria-labelledby="overview-heading" className="mb-8 flex flex-col gap-6">

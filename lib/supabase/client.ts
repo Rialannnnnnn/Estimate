@@ -1,8 +1,19 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { getSupabasePublicConfig } from './config'
+export { getSupabaseClientErrorMessage } from './config'
+
+let browserClient: ReturnType<typeof createBrowserClient> | null = null
 
 export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  )
+  const { url, anonKey } = getSupabasePublicConfig()
+
+  if (typeof window === 'undefined') {
+    return createBrowserClient(url, anonKey, { isSingleton: false })
+  }
+
+  if (!browserClient) {
+    browserClient = createBrowserClient(url, anonKey, { isSingleton: true })
+  }
+
+  return browserClient
 }

@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getSupabaseClientErrorMessage } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -33,17 +33,25 @@ export function LoginForm({ initialError }: { initialError?: string }) {
     setError(null)
     setLoading(true)
 
-    const supabase = createClient()
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    try {
+      const supabase = createClient()
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (signInError) {
-      setError(getLoginErrorMessage(signInError))
+      if (signInError) {
+        setError(getLoginErrorMessage(signInError))
+        return
+      }
+
+      router.push('/dashboard')
+      router.refresh()
+    } catch (error) {
+      setError(getSupabaseClientErrorMessage(
+        error,
+        'Layanan autentikasi tidak dapat dihubungi. Coba lagi nanti.',
+      ))
+    } finally {
       setLoading(false)
-      return
     }
-
-    router.push('/dashboard')
-    router.refresh()
   }
 
   return (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getSupabaseClientErrorMessage } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -27,8 +27,8 @@ export function ForgotPasswordForm() {
       } else {
         setSent(true)
       }
-    } catch {
-      setError('Koneksi bermasalah. Coba lagi nanti.')
+    } catch (error) {
+      setError(getSupabaseClientErrorMessage(error, 'Koneksi bermasalah. Coba lagi nanti.'))
     } finally {
       setSending(false)
     }

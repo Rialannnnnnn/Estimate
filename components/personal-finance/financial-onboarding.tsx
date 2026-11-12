@@ -1,0 +1,68 @@
+'use client'
+
+import { useState } from 'react'
+import { ArrowLeft, ArrowRight, Check, CircleHelp, Sparkles } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { defaultCategories, type ExpenseCategory, type FinanceProfile } from '@/lib/personal-finance'
+import { rupiah } from '@/lib/personal-finance'
+
+const steps = ['Profil keuangan', 'Kebiasaan uang', 'Target tabungan', 'Alokasi awal']
+const fieldClass = 'h-11 rounded-xl border-border bg-background'
+const inputLabel = 'mb-1.5 block text-sm font-medium text-foreground'
+const choiceClass = 'rounded-xl border border-border bg-background px-3 py-2.5 text-left text-sm transition hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+
+export function FinancialOnboarding({ onComplete }: { onComplete: (profile: FinanceProfile, categories: ExpenseCategory[]) => void }) {
+  const [step, setStep] = useState(0)
+  const [allocations, setAllocations] = useState(defaultCategories)
+  const totalAllocation = allocations.reduce((sum, category) => sum + category.sharePercent, 0)
+  const updateAllocation = (id: string, value: number) => setAllocations((current) => {
+    const otherPercent = current.filter((category) => category.id !== id).reduce((sum, category) => sum + category.sharePercent, 0)
+    const sharePercent = Math.min(Math.max(0, 100 - otherPercent), Math.max(0, value))
+    return current.map((category) => category.id === id ? { ...category, sharePercent } : category)
+  })
+  const [profile, setProfile] = useState<FinanceProfile>({
+    status: 'Mahasiswa', incomeSource: '', monthlyIncome: 0, frequency: 'Bulanan', hasAdditionalIncome: false,
+    openingBalance: 0, firstAction: '', priority: 'Kebutuhan sehari-hari', priorityPercent: 40,
+    savesBeforeSpending: 'Kadang-kadang', biggestChallenge: 'Sulit menabung', monthlySavingTarget: 0,
+    savingPurpose: '', savingGoalAmount: 0, savingDeadline: '', fixedExpenses: 0,
+  })
+  const update = <K extends keyof FinanceProfile>(key: K, value: FinanceProfile[K]) => setProfile((current) => ({ ...current, [key]: value }))
+  const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value)
+  const setAmount = (key: 'monthlyIncome' | 'openingBalance' | 'monthlySavingTarget' | 'savingGoalAmount' | 'fixedExpenses', value: string) => update(key, Number(value.replace(/\D/g, '')) || 0)
+  const categoryBudget = Math.max(0, profile.monthlyIncome - profile.monthlySavingTarget - profile.fixedExpenses)
+  const canContinue = step !== 0 || (profile.monthlyIncome > 0 && profile.incomeSource.trim().length > 0)
+
+  return (
+    <main className="min-h-screen bg-background px-4 py-8 sm:px-6 sm:py-12">
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-8 flex items-center gap-3 text-primary"><div className="flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Sparkles aria-hidden="true" /></div><div><p className="text-xl font-bold tracking-tight">Ruang keuanganmu</p><p className="text-sm text-muted-foreground">Kenali pola uangmu sebelum mulai.</p></div></div>
+        <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-8">
+          <div className="mb-8">
+            <div className="mb-3 flex items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-[.14em] text-primary">Langkah {step + 1} dari 4</p><p className="text-sm text-muted-foreground">{steps[step]}</p></div>
+            <div className="flex gap-2" aria-label="Progres onboarding">{steps.map((label, index) => <div key={label} className={`h-1.5 flex-1 rounded-full ${index <= step ? 'bg-primary' : 'bg-secondary'}`} />)}</div>
+          </div>
+          {step === 0 && <div className="flex flex-col gap-5"><div><h1 className="text-2xl font-semibold tracking-tight">Mulai dari gambaran besarmu</h1><p className="mt-1 text-sm text-muted-foreground">Informasi ini hanya tersimpan selama sesi prototipe ini.</p></div>
+            <div><label className={inputLabel} htmlFor="status">Kondisi saat ini</label><select id="status" className={`${fieldClass} w-full px-3 text-sm`} value={profile.status} onChange={(event) => update('status', event.target.value as FinanceProfile['status'])}>{['Mahasiswa', 'Pekerja', 'Mahasiswa dan pekerja'].map((value) => <option key={value}>{value}</option>)}</select></div>
+            <div className="grid gap-4 sm:grid-cols-2"><div><label className={inputLabel} htmlFor="income-source">Sumber pemasukan</label><Input id="income-source" className={fieldClass} value={profile.incomeSource} onChange={(event) => update('incomeSource', event.target.value)} placeholder="Contoh: gaji, kiriman orang tua" /></div><div><label className={inputLabel} htmlFor="income-frequency">Frekuensi pemasukan</label><select id="income-frequency" className={`${fieldClass} w-full px-3 text-sm`} value={profile.frequency} onChange={(event) => update('frequency', event.target.value as FinanceProfile['frequency'])}>{['Harian', 'Mingguan', 'Bulanan', 'Tidak tetap'].map((value) => <option key={value}>{value}</option>)}</select></div>
+              <div><label className={inputLabel} htmlFor="income">Total pemasukan per bulan</label><Input id="income" inputMode="numeric" className={fieldClass} value={profile.monthlyIncome ? formatNumber(profile.monthlyIncome) : ''} onChange={(event) => setAmount('monthlyIncome', event.target.value)} placeholder="5.000.000" /></div><div><label className={inputLabel} htmlFor="balance">Saldo awal tersedia</label><Input id="balance" inputMode="numeric" className={fieldClass} value={profile.openingBalance ? formatNumber(profile.openingBalance) : ''} onChange={(event) => setAmount('openingBalance', event.target.value)} placeholder="0" /></div></div>
+            <label className="flex items-center gap-3 rounded-xl bg-muted/70 p-3 text-sm"><input type="checkbox" checked={profile.hasAdditionalIncome} onChange={(event) => update('hasAdditionalIncome', event.target.checked)} className="size-4 accent-primary" />Aku juga punya pemasukan tambahan</label>
+          </div>}
+          {step === 1 && <div className="flex flex-col gap-5"><div><h1 className="text-2xl font-semibold tracking-tight">Bagaimana kamu mengambil keputusan?</h1><p className="mt-1 text-sm text-muted-foreground">Tidak ada jawaban benar atau salah.</p></div>
+            <Choice label="Saat menerima uang, apa yang biasanya kamu lakukan?" value={profile.firstAction} options={['Langsung menabung', 'Membayar kebutuhan utama', 'Membeli yang diinginkan', 'Nongkrong atau hiburan', 'Menggunakan tanpa perencanaan']} onChange={(value) => update('firstAction', value)} />
+            <div className="grid gap-4 sm:grid-cols-2"><div><label className={inputLabel} htmlFor="priority">Prioritas utama</label><select id="priority" className={`${fieldClass} w-full px-3 text-sm`} value={profile.priority} onChange={(event) => update('priority', event.target.value)}>{['Kebutuhan sehari-hari', 'Pendidikan', 'Lifestyle', 'Hiburan', 'Tabungan dan investasi', 'Kebutuhan keluarga'].map((value) => <option key={value}>{value}</option>)}</select></div><div><label className={inputLabel} htmlFor="priority-percent">Porsi untuk prioritas ini</label><div className="flex items-center gap-3"><Input id="priority-percent" type="number" min="0" max="100" className={fieldClass} value={profile.priorityPercent} onChange={(event) => update('priorityPercent', Math.max(0, Math.min(100, Number(event.target.value) || 0)))} /><span>%</span></div></div></div>
+            <Choice label="Apakah kamu menyisihkan uang sebelum belanja?" value={profile.savesBeforeSpending} options={['Selalu', 'Kadang-kadang', 'Jarang', 'Tidak pernah']} onChange={(value) => update('savesBeforeSpending', value)} />
+            <div><label className={inputLabel} htmlFor="challenge">Kesulitan finansial terbesar</label><select id="challenge" className={`${fieldClass} w-full px-3 text-sm`} value={profile.biggestChallenge} onChange={(event) => update('biggestChallenge', event.target.value)}>{['Uang habis sebelum akhir bulan', 'Sulit menabung', 'Pengeluaran tidak terencana', 'Tidak tahu uang digunakan untuk apa', 'Pemasukan tidak stabil'].map((value) => <option key={value}>{value}</option>)}</select></div>
+          </div>}
+          {step === 2 && <div className="flex flex-col gap-5"><div><h1 className="text-2xl font-semibold tracking-tight">Satu tujuan yang berarti</h1><p className="mt-1 text-sm text-muted-foreground">Kamu bisa menyesuaikan target kapan saja.</p></div><div className="grid gap-4 sm:grid-cols-2"><div><label className={inputLabel} htmlFor="save-target">Target tabungan bulanan</label><Input id="save-target" inputMode="numeric" className={fieldClass} value={profile.monthlySavingTarget ? formatNumber(profile.monthlySavingTarget) : ''} onChange={(event) => setAmount('monthlySavingTarget', event.target.value)} placeholder={rupiah(Math.round(profile.monthlyIncome * 0.2))} /></div><div><label className={inputLabel} htmlFor="fixed-expenses">Pengeluaran tetap bulanan</label><Input id="fixed-expenses" inputMode="numeric" className={fieldClass} value={profile.fixedExpenses ? formatNumber(profile.fixedExpenses) : ''} onChange={(event) => setAmount('fixedExpenses', event.target.value)} placeholder="0" /></div><div><label className={inputLabel} htmlFor="save-purpose">Tujuan tabungan</label><Input id="save-purpose" className={fieldClass} value={profile.savingPurpose} onChange={(event) => update('savingPurpose', event.target.value)} placeholder="Contoh: dana darurat" /></div><div><label className={inputLabel} htmlFor="goal-amount">Target nominal</label><Input id="goal-amount" inputMode="numeric" className={fieldClass} value={profile.savingGoalAmount ? formatNumber(profile.savingGoalAmount) : ''} onChange={(event) => setAmount('savingGoalAmount', event.target.value)} placeholder="0" /></div><div><label className={inputLabel} htmlFor="deadline">Target ingin dicapai</label><Input id="deadline" type="date" className={fieldClass} value={profile.savingDeadline} onChange={(event) => update('savingDeadline', event.target.value)} /></div></div><p className="rounded-xl bg-muted/70 p-3 text-sm text-muted-foreground">Rekomendasi awal 20% dari pemasukan: <strong className="text-foreground">{rupiah(Math.round(profile.monthlyIncome * 0.2))}</strong>. Sesuaikan dengan kebutuhanmu.</p></div>}
+          {step === 3 && <div className="flex flex-col gap-5"><div><h1 className="text-2xl font-semibold tracking-tight">Pembagian yang fleksibel</h1><p className="mt-1 text-sm text-muted-foreground">Bukan aturan baku. Total nominal kategori dibatasi budget belanja yang tersedia.</p></div><div className="rounded-2xl bg-primary p-5 text-primary-foreground"><p className="text-sm opacity-80">Budget tersedia setelah tabungan dan biaya tetap</p><p className="mt-1 text-3xl font-semibold">{rupiah(categoryBudget)}</p><p className="mt-2 text-xs opacity-75">Pemasukan {rupiah(profile.monthlyIncome)} − tabungan {rupiah(profile.monthlySavingTarget)} − pengeluaran tetap {rupiah(profile.fixedExpenses)}</p></div><div className="rounded-2xl border border-border"><div className="flex items-center justify-between border-b border-border px-4 py-3"><p className="text-sm font-semibold">Kategori rekomendasi</p><p className="text-xs text-muted-foreground">Total {totalAllocation.toFixed(1)}%</p></div><div className="max-h-64 overflow-y-auto px-4">{allocations.map((category) => <div key={category.id} className="grid grid-cols-[minmax(0,1fr)_80px_105px] items-center gap-3 border-b border-border py-2 last:border-0"><span className="truncate text-sm">{category.name}</span><Input aria-label={`Persentase ${category.name}`} type="number" min="0" max="100" step="0.1" className="h-9 text-right" value={category.sharePercent} onChange={(event) => updateAllocation(category.id, Number(event.target.value) || 0)} /><span className="text-right text-xs text-muted-foreground">{rupiah(Math.floor(categoryBudget * category.sharePercent / 100))}</span></div>)}</div></div><p className="flex gap-2 rounded-xl border border-border p-3 text-sm text-muted-foreground"><CircleHelp className="mt-0.5 size-4 shrink-0" />Sesuaikan kategori dan nominal setelah masuk ke dashboard. Belum ada transaksi atau saldo yang diisikan otomatis.</p></div>}
+          <div className="mt-8 flex justify-between border-t border-border pt-5"><Button variant="outline" onClick={() => setStep((current) => current - 1)} disabled={step === 0}><ArrowLeft data-icon="inline-start" />Kembali</Button>{step < 3 ? <Button onClick={() => setStep((current) => current + 1)} disabled={!canContinue}>Lanjut<ArrowRight data-icon="inline-end" /></Button> : <Button onClick={() => onComplete(profile, allocations.map((category) => ({ ...category, amount: Math.floor(categoryBudget * category.sharePercent / 100) })))}><Check data-icon="inline-start" />Buka dashboard</Button>}</div>
+        </section><p className="mt-5 text-center text-xs text-muted-foreground">Mode prototipe: data sesi akan hilang saat halaman dimuat ulang.</p>
+      </div>
+    </main>
+  )
+}
+
+function Choice({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+  return <fieldset><legend className={inputLabel}>{label}</legend><div className="grid gap-2 sm:grid-cols-2">{options.map((option) => <button key={option} type="button" aria-pressed={value === option} onClick={() => onChange(option)} className={`${choiceClass} ${value === option ? 'border-primary bg-primary/5 text-primary' : ''}`}>{option}</button>)}</div></fieldset>
+}
