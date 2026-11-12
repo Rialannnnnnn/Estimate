@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'EstiMate — Teman Budgeting Harian',
-  description: 'Rencanakan kebutuhan harian dan bulanan, pahami prioritas belanja, dan kurangi pengeluaran berlebih dengan EstiMate.',
+  description: 'Atur anggaran berbasis tanggal gajian, pantau burn rate pengeluaran, dan kelola budget proyek dengan EstiMate.',
   keywords: ['budgeting harian', 'budgeting bulanan', 'catatan pengeluaran', 'kebutuhan belanja', 'remaja', 'dewasa muda'],
   authors: [{ name: 'EstiMate Team' }],
   generator: 'Next.js',
@@ -48,8 +48,7 @@ export const viewport: Viewport = {
   themeColor: '#F4F8FB',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  userScalable: true,
 }
 
 export default function RootLayout({
