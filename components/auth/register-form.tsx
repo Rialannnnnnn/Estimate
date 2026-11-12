@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, MailCheck } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getSupabaseClientErrorMessage } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -54,33 +54,40 @@ export function RegisterForm() {
     }
 
     setLoading(true)
-    const supabase = createClient()
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: trimmedEmail,
-      password,
-      options: {
-        emailRedirectTo:
-          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? `${window.location.origin}/auth/callback`,
-        data: {
-          full_name: trimmedName,
+    try {
+      const supabase = createClient()
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password,
+        options: {
+          emailRedirectTo:
+            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? `${window.location.origin}/auth/callback`,
+          data: {
+            full_name: trimmedName,
+          },
         },
-      },
-    })
+      })
 
-    if (signUpError) {
-      setError(getSignUpErrorMessage(signUpError))
+      if (signUpError) {
+        setError(getSignUpErrorMessage(signUpError))
+        return
+      }
+
+      if (data.session) {
+        router.push('/dashboard')
+        router.refresh()
+        return
+      }
+
+      setConfirmationSentTo(trimmedEmail)
+    } catch (error) {
+      setError(getSupabaseClientErrorMessage(
+        error,
+        'Layanan autentikasi tidak dapat dihubungi. Coba lagi nanti.',
+      ))
+    } finally {
       setLoading(false)
-      return
     }
-
-    if (data.session) {
-      router.push('/dashboard')
-      router.refresh()
-      return
-    }
-
-    setConfirmationSentTo(trimmedEmail)
-    setLoading(false)
   }
 
   if (confirmationSentTo) {

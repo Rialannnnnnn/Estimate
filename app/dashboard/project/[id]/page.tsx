@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getSupabaseClientErrorMessage } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -54,7 +54,8 @@ interface Project {
 export default function ProjectPage({ params }: ProjectPageProps) {
   const { id } = use(params)
   const router = useRouter()
-  const supabase = createClient()
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null)
+  const [clientError, setClientError] = useState<string | null>(null)
   const [project, setProject] = useState<Project | null>(null)
   const [materials, setMaterials] = useState<Material[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -66,6 +67,19 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const [materialQuery, setMaterialQuery] = useState('')
 
   useEffect(() => {
+    try {
+      setSupabase(createClient())
+    } catch (error) {
+      setClientError(getSupabaseClientErrorMessage(
+        error,
+        'Autentikasi tidak dapat diinisialisasi. Coba muat ulang aplikasi.',
+      ))
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!supabase) return
     const loadProject = async () => {
       try {
         const { data: projectData, error: projectError } = await supabase
@@ -100,7 +114,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   }, [id, supabase])
 
   const handleUpdateProjectName = async () => {
-    if (!project || !editName.trim()) return
+    if (!supabase || !project || !editName.trim()) return
 
     try {
       const { error } = await supabase
@@ -118,7 +132,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   }
 
   const handleUpdateBudget = async () => {
-    if (!project) return
+    if (!supabase || !project) return
 
     const budgetAmount = parseFloat(editBudget)
     if (isNaN(budgetAmount)) return
@@ -139,6 +153,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   }
 
   const handleUpdateMaterial = async (materialId: string, updates: Partial<Material>) => {
+    if (!supabase) return
     try {
       const { error } = await supabase
         .from('project_materials')
@@ -154,6 +169,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   }
 
   const handleDeleteMaterial = async (materialId: string) => {
+    if (!supabase) return
     try {
       const { error } = await supabase
         .from('project_materials')
@@ -169,6 +185,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   }
 
   const handleAddMaterial = async (name: string, quantity: number, unitPrice: number, category: string) => {
+    if (!supabase) return
     try {
       const { data, error } = await supabase
         .from('project_materials')
@@ -193,6 +210,20 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     } catch (err) {
       console.error('Error adding material:', err)
     }
+  }
+
+  if (clientError) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-brand-blue px-4 text-white">
+        <section role="alert" className="max-w-lg rounded-2xl border border-white/15 bg-white/10 p-6 text-center">
+          <h1 className="text-xl font-semibold">Autentikasi tidak tersedia</h1>
+          <p className="mt-3 text-sm text-white/80">{clientError}</p>
+          <Link href="/auth/login" className="mt-5 inline-flex rounded-full bg-white px-5 py-2.5 font-medium text-brand-blue">
+            Kembali ke login
+          </Link>
+        </section>
+      </main>
+    )
   }
 
   if (isLoading) {

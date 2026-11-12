@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getSupabaseClientErrorMessage, getSupabasePublicConfig } from './config'
 
 function redirectWithCookies(request: NextRequest, sessionResponse: NextResponse, pathname: string) {
   const url = request.nextUrl.clone()
@@ -15,27 +16,29 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   const { pathname } = request.nextUrl
   const isAuthFormRoute = pathname === '/auth/login' || pathname === '/auth/register' || pathname === '/auth/forgot-password'
   const isPublicRoute = isAuthFormRoute || pathname === '/auth/callback'
   const isProtectedRoute = !isPublicRoute
 
-  // Without Supabase config the session cannot be checked: keep the auth pages
-  // reachable instead of crashing every request, and keep everything else locked.
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Supabase env vars are missing; skipping session refresh.')
+  let supabaseConfig
+  try {
+    supabaseConfig = getSupabasePublicConfig()
+  } catch (error) {
+    const message = getSupabaseClientErrorMessage(
+      error,
+      'Supabase session validation is unavailable; protected routes remain locked.',
+    )
+    console.warn(message)
     return isProtectedRoute
       ? redirectWithCookies(request, supabaseResponse, '/auth/login')
       : supabaseResponse
   }
 
-  // With Fluid compute, don't put this client in a global environment
-  // variable. Always create a new one on each request.
+  // Create a request-scoped client so session cookies never leak across requests.
   const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
+    supabaseConfig.url,
+    supabaseConfig.anonKey,
     {
       cookies: {
         getAll() {

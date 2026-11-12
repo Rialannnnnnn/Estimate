@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getSupabaseClientErrorMessage } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -42,8 +42,8 @@ export function UpdatePasswordForm() {
       await supabase.auth.signOut()
       setSuccess(true)
       router.refresh()
-    } catch {
-      setError('Koneksi bermasalah. Coba lagi nanti.')
+    } catch (error) {
+      setError(getSupabaseClientErrorMessage(error, 'Koneksi bermasalah. Coba lagi nanti.'))
     } finally {
       setSaving(false)
     }
