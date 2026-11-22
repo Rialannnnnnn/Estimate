@@ -59,6 +59,11 @@ function isExplicitBulkReset(description: string) {
     && /(hapus semua|kosongkan daftar|reset daftar|mulai ulang daftar|mulai dari awal|ganti seluruh daftar|buat ulang seluruh daftar)/i.test(description)
 }
 
+function mayUpdateItems(description: string) {
+  if (/\\b(jangan|tanpa|tidak|nggak|gak|ga)\\b.{0,24}\\b(ubah|ganti|kurangi|naikkan|turunkan|perbarui|revisi|sesuaikan)\\b/i.test(description)) return false
+  return /\\b(ubah|ganti|jadikan|kurangi|naikkan|turunkan|perbarui|revisi|sesuaikan|cukup|menjadi)\\b|\\bjadi\\s+\\d+/i.test(description)
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
@@ -224,7 +229,7 @@ export async function POST(request: Request) {
       if (action === 'remove') {
         if (!canRemove || !targetItemId || !existingIds.has(targetItemId)) return []
       } else if (action === 'update') {
-        if (!targetItemId || !existingIds.has(targetItemId) || !itemKey || (!catalogKeys.has(itemKey) && itemKey !== 'custom')) return []
+        if (!mayUpdateItems(description) || !targetItemId || !existingIds.has(targetItemId) || !itemKey || (!catalogKeys.has(itemKey) && itemKey !== 'custom')) return []
       } else if (itemKey !== 'custom' && !catalogKeys.has(itemKey)) {
         return []
       }
