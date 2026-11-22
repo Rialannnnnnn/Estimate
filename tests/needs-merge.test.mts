@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { applyNeedsChanges, type MergeableNeedsItem, type NeedsGenerationChange } from '../lib/needs-merge'
+import { applyNeedsChanges, type MergeableNeedsItem, type NeedsGenerationChange } from '../lib/needs-merge.ts'
 
 const now = new Date('2026-11-23T00:00:00.000Z').getTime()
 
