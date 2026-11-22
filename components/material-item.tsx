@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { Material } from '@/lib/types'
-import { formatCurrency, parseCurrencyInput } from '@/lib/budget'
+import { formatCurrency, formatCurrencyInput, parseCurrencyInput } from '@/lib/budget'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -22,9 +22,9 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
   const [editName, setEditName] = useState(material.name)
   const [editCategory, setEditCategory] = useState(material.category ?? '')
   const [editQuantity, setEditQuantity] = useState(material.quantity.toString())
-  const [editPrice, setEditPrice] = useState(unitPrice.toString())
+  const [editPrice, setEditPrice] = useState(formatCurrencyInput(unitPrice))
   const [actualPriceInput, setActualPriceInput] = useState(
-    material.actualPrice?.toString() ?? ''
+    material.actualPrice == null ? '' : formatCurrencyInput(material.actualPrice)
   )
 
   const handlePurchaseToggle = (checked: boolean) => {
@@ -34,7 +34,7 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
 
   const handleActualPriceChange = (value: string) => {
     // Keep the field editable locally; save the amount when the user leaves it.
-    setActualPriceInput(value)
+    setActualPriceInput(formatCurrencyInput(value))
   }
 
   const handleActualPriceCommit = () => {
@@ -63,7 +63,7 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
     setEditName(material.name)
     setEditCategory(material.category ?? '')
     setEditQuantity(material.quantity.toString())
-    setEditPrice(unitPrice.toString())
+    setEditPrice(formatCurrencyInput(unitPrice))
     setIsEditing(false)
   }
 
@@ -100,7 +100,7 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
             <Input
             type="number"
             value={editPrice}
-            onChange={(e) => setEditPrice(e.target.value)}
+            onChange={(e) => setEditPrice(formatCurrencyInput(e.target.value))}
             placeholder="Harga estimasi"
             className="border-2 border-border bg-transparent h-12 font-mono"
             />
