@@ -320,22 +320,26 @@ export async function POST(request: Request) {
     }
 
     const payload: unknown = await response.json()
-    if (!isRecord(payload) || !Array.isArray(payload.steps)) {
+    if (!isRecord(payload)) {
       return NextResponse.json({ error: 'Respons Gemini tidak dapat dibaca. Daftar kamu tetap aman.' }, { status: 502 })
     }
 
-    if (payload.status !== 'completed') {
+    if (payload.status && payload.status !== 'completed') {
       const status = typeof payload.status === 'string' ? payload.status : 'unknown'
       console.error('Gemini interaction did not complete:', status)
       return NextResponse.json({ error: 'Gemini belum menyelesaikan jawaban. Daftar kamu tetap aman; coba kirim ulang.' }, { status: 502 })
     }
 
-    const outputText = payload.steps.flatMap((step) => {
-      if (!isRecord(step) || step.type !== 'model_output' || !Array.isArray(step.content)) return []
-      return step.content.flatMap((part) =>
-        isRecord(part) && part.type === 'text' && typeof part.text === 'string' ? [part.text] : [],
-      )
-    }).join('\\n')
+    const outputText = typeof payload.output_text === 'string'
+      ? payload.output_text
+      : Array.isArray(payload.steps)
+        ? payload.steps.flatMap((step) => {
+            if (!isRecord(step) || step.type !== 'model_output' || !Array.isArray(step.content)) return []
+            return step.content.flatMap((part) =>
+              isRecord(part) && part.type === 'text' && typeof part.text === 'string' ? [part.text] : [],
+            )
+          }).join('\\n')
+        : ''
 
     if (!outputText) {
       return NextResponse.json({ error: 'Gemini tidak mengembalikan teks jawaban. Daftar kamu tetap aman.' }, { status: 502 })
