@@ -1,7 +1,7 @@
 // Development-only fixtures for the rule-based generator. Run: pnpm test:recommendations
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { analyzeBudget, generateRecommendations, itemTotal, ITEMS } from '../lib/recommendations.ts'
+import { analyzeBudget, estimatePersonalUnitPrice, generateRecommendations, itemTotal, ITEMS, type PriceObservation } from '../lib/recommendations.ts'
 import { templates, templateList } from '../lib/templates.ts'
 
 const keys = (result: ReturnType<typeof generateRecommendations>) => result.items.map((item) => item.itemKey)
