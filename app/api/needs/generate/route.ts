@@ -50,6 +50,9 @@ const ALLOWED_CATEGORIES = [
   'Makanan & Minuman', 'Bahan Makanan', 'Transportasi', 'Tempat Tinggal',
   'Tagihan', 'Kuliah & Tugas', 'Perlengkapan Proyek', 'Alat & Bahan',
   'Rumah Tangga', 'Perawatan', 'Kesehatan', 'Hiburan', 'Tabungan', 'Lainnya',
+  'Tugas kuliah', 'Tugas & dokumen', 'Makan', 'Kebutuhan kerja',
+  'Tempat tinggal', 'Rumah tangga', 'Dapur', 'Bahan makanan',
+  'Keinginan', 'Liburan', 'Cadangan',
 ] as const
 
 const ALLOWED_UNITS = [
