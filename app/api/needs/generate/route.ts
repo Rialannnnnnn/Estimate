@@ -6,7 +6,6 @@ const MODEL = 'gemini-3.6-flash'
 
 const responseSchema = {
   type: 'object',
-  additionalProperties: false,
   properties: {
     assistantMessage: { type: 'string' },
     clarifyingQuestion: { type: 'string' },
@@ -14,7 +13,6 @@ const responseSchema = {
       type: 'array',
       items: {
         type: 'object',
-        additionalProperties: false,
         properties: {
           action: { type: 'string', enum: ['add', 'update', 'remove'] },
           itemKey: { type: 'string' },
@@ -22,11 +20,11 @@ const responseSchema = {
           name: { type: 'string' },
           category: { type: 'string' },
           unit: { type: 'string' },
-          quantity: { type: 'integer', minimum: 1, maximum: 10000 },
+          quantity: { type: 'integer' },
           priority: { type: 'string', enum: ['essential', 'optional'] },
-          userProvidedUnitPrice: { type: 'number', minimum: 0, maximum: 1000000000 },
-          dailyFrequency: { type: 'integer', minimum: 0, maximum: 24 },
-          periodDays: { type: 'integer', minimum: 0, maximum: 366 },
+          userProvidedUnitPrice: { type: 'number' },
+          dailyFrequency: { type: 'integer' },
+          periodDays: { type: 'integer' },
         },
         required: ['action', 'itemKey', 'targetItemId', 'name', 'category', 'unit', 'quantity', 'priority', 'userProvidedUnitPrice', 'dailyFrequency', 'periodDays'],
       },
@@ -237,6 +235,7 @@ export async function POST(request: Request) {
       'Gunakan kategori dari pilihan berikut: ' + ALLOWED_CATEGORIES.join(', ') + '. Gunakan satuan dari pilihan berikut: ' + ALLOWED_UNITS.join(', ') + '. Pilih kategori dan satuan yang paling tepat; jangan meminta pengguna mengetik kategori/satuan.',
       'Prioritaskan itemKey katalog jika benar-benar cocok; selain itu gunakan itemKey "custom". Jangan memaksakan item ke kategori katalog yang tidak sesuai.',
       'Untuk item katalog, nama, kategori dan satuan harus sesuai katalog. Untuk item custom, kategori dan satuan harus dipilih dari pilihan yang tersedia.',
+      'Agar JSON valid: field targetItemId isi string kosong "" untuk item baru; untuk update/remove isi ID target yang persis. Field userProvidedUnitPrice isi 0 bila pengguna tidak menyebut harga; dailyFrequency dan periodDays isi 0 bila bukan kebutuhan berulang; clarifyingQuestion isi string kosong bila tidak perlu bertanya.',
       'Jangan mengubah batas budget pengguna. Jangan mengarang harga pasar, harga aktual, atau riwayat pembelian. Harga pribadi dan Harga Asli tidak dikirim ke model.',
       'Jika ukuran, periode, satuan, atau detail penting tidak cukup jelas untuk perhitungan yang bisa dipercaya, ajukan satu pertanyaan klarifikasi. Namun tetap buat item lain yang sudah jelas.',
       'Balas assistantMessage dengan Bahasa Indonesia yang ramah, ringkas, dan jelaskan perhitungan, asumsi, serta hal yang perlu dikonfirmasi.',
@@ -338,7 +337,7 @@ export async function POST(request: Request) {
             return step.content.flatMap((part) =>
               isRecord(part) && part.type === 'text' && typeof part.text === 'string' ? [part.text] : [],
             )
-          }).join('\\n')
+          }).join('\n')
         : ''
 
     if (!outputText) {
