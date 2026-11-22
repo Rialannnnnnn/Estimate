@@ -500,6 +500,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                     quantity: material.quantity,
                     unitPrice: material.unit_price,
                     actualPrice: material.actual_price ?? null,
+                    actualPriceRecordedAt: material.actual_price_recorded_at ?? null,
                     isPurchased: material.is_purchased,
                     category: material.category,
                   }}
