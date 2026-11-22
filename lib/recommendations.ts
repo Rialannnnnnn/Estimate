@@ -556,7 +556,8 @@ export function createCatalogRecommendation({
   const matchesBaseUnit = !requestedUnit
     || def.unit.toLocaleLowerCase('id') === requestedUnit
     || (def.unitAliases ?? []).some((alias) => alias.toLocaleLowerCase('id') === requestedUnit)
-  const resolvedUnit = variant?.unit ?? (matchesBaseUnit ? def.unit : def.unit)
+  if (requestedUnit && !variant && !matchesBaseUnit) return null
+  const resolvedUnit = variant?.unit ?? def.unit
   const cataloguePrice = variant?.unitPrice
     ?? (period === 'daily' && def.dailyUnitPrice ? def.dailyUnitPrice : def.unitPrice)
   const category = `${def.category} · ${resolvedUnit}`
