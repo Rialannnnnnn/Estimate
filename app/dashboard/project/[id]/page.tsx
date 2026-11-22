@@ -13,7 +13,13 @@ import { BudgetIndicator } from '@/components/budget-indicator'
 import { MaterialItem } from '@/components/material-item'
 import { AddMaterialForm } from '@/components/add-material-form'
 import { ExpenseChart } from '@/components/expense-chart'
-import { formatCurrency, getBudgetStatus } from '@/lib/budget'
+import {
+  calculateActualTotal,
+  calculateEstimatedTotal,
+  calculateProjectedTotal,
+  formatCurrency,
+  getBudgetStatus,
+} from '@/lib/budget'
 import { templates } from '@/lib/templates'
 import type { TemplateType } from '@/lib/templates'
 import {
@@ -138,6 +144,31 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     }
   }
 
+  const syncProjectSpent = async () => {
+    const { data, error } = await supabase
+      .from('project_materials')
+      .select('quantity, actual_price, is_purchased')
+      .eq('project_id', id)
+
+    if (error) throw error
+
+    const actualSpent = (data ?? []).reduce((sum, item) => {
+      if (item.is_purchased && item.actual_price != null) {
+        return sum + Number(item.actual_price) * Number(item.quantity)
+      }
+      return sum
+    }, 0)
+
+    const { error: projectError } = await supabase
+      .from('projects')
+      .update({ spent: actualSpent })
+      .eq('id', id)
+
+    if (projectError) throw projectError
+
+    setProject((current) => current ? { ...current, spent: actualSpent } : current)
+  }
+
   const handleUpdateMaterial = async (materialId: string, updates: Partial<Material>) => {
     try {
       const { error } = await supabase
@@ -147,7 +178,12 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
       if (error) throw error
 
-      setMaterials(materials.map(m => m.id === materialId ? { ...m, ...updates } : m))
+      setMaterials((current) =>
+        current.map((material) =>
+          material.id === materialId ? { ...material, ...updates } : material
+        )
+      )
+      await syncProjectSpent()
     } catch (err) {
       console.error('Error updating material:', err)
     }
@@ -162,7 +198,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
       if (error) throw error
 
-      setMaterials(materials.filter(m => m.id !== materialId))
+      setMaterials((current) => current.filter((material) => material.id !== materialId))
+      await syncProjectSpent()
     } catch (err) {
       console.error('Error deleting material:', err)
     }
@@ -221,12 +258,16 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     )
   }
 
-  const currentTotal = materials.reduce(
-    (sum, m) => sum + (m.actual_price !== null ? m.actual_price : m.quantity * m.unit_price),
-    0
-  )
-  const budgetStatus = getBudgetStatus(currentTotal, project.budget)
-  const estimatedTotal = materials.reduce((sum, m) => sum + m.quantity * m.unit_price, 0)
+  const calculationMaterials = materials.map((material) => ({
+    unitPrice: Number(material.unit_price) || 0,
+    actualPrice: material.actual_price == null ? null : Number(material.actual_price),
+    quantity: Number(material.quantity) || 0,
+    isPurchased: material.is_purchased,
+  }))
+  const actualTotal = calculateActualTotal(calculationMaterials)
+  const estimatedTotal = calculateEstimatedTotal(calculationMaterials)
+  const projectedTotal = calculateProjectedTotal(calculationMaterials)
+  const budgetStatus = getBudgetStatus(projectedTotal, project.budget)
   const purchasedCount = materials.filter(m => m.is_purchased).length
   const filteredMaterials = smartFilterMaterials(materials, materialQuery)
 
@@ -318,7 +359,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </div>
 
           <BudgetIndicator
-            currentTotal={currentTotal}
+            currentTotal={projectedTotal}
             budgetLimit={project.budget}
             status={budgetStatus}
             className="mb-8"
@@ -330,7 +371,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
             {[
               { label: 'ESTIMASI', value: formatCurrency(estimatedTotal) },
-              { label: 'REALISASI', value: formatCurrency(currentTotal) },
+              { label: 'REALISASI', value: formatCurrency(actualTotal) },
               { label: 'DIBELI', value: `${purchasedCount}/${materials.length}` },
             ].map((stat) => (
               <div
@@ -435,14 +476,14 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                     name: material.name,
                     quantity: material.quantity,
                     unitPrice: material.unit_price,
-                    actualPrice: material.actual_price || undefined,
+                    actualPrice: material.actual_price ?? null,
                     isPurchased: material.is_purchased,
                     category: material.category,
                   }}
                   onUpdate={(updated) => {
                     handleUpdateMaterial(material.id, {
                       quantity: updated.quantity,
-                      actual_price: updated.actualPrice || null,
+                      actual_price: updated.actualPrice ?? null,
                       is_purchased: updated.isPurchased,
                     })
                   }}
