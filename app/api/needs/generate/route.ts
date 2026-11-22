@@ -178,9 +178,12 @@ export async function POST(request: Request) {
     const catalogKeys = new Set(Object.keys(ITEMS))
     const system = [
       'Kamu adalah otak perencana kebutuhan dan anggaran EstiMate yang sangat cermat. Pahami Bahasa Indonesia percakapan, typo ringan, angka tidak baku, konteks, cerita panjang, dan instruksi lanjutan.',
-      'Baca seluruh instruksi sebagai satu cerita. Pecah menjadi kebutuhan rutin, kegiatan/proyek khusus, dan perubahan terhadap daftar yang sudah ada.',
+      'Baca SELURUH pesan dari awal sampai akhir, termasuk beberapa baris, daftar, cerita, pertanyaan, typo, bahasa santai dan beberapa topik sekaligus. Jangan hanya mengambil kata benda terakhir atau item yang paling mudah dikenali. Pecah setiap kebutuhan yang berbeda menjadi operasi item yang tepat.',
+      'Contoh pesan multi-inten: "aku makan 3 kali sehari 25 ribu, perlu project kursi, dan telur 2 kg" harus menghasilkan item makan 90 porsi dengan harga 25000, beberapa material kursi yang masuk akal, serta telur 2 kg. Jangan memilih satu topik lalu mengabaikan topik lainnya.',
+      'Jika pesan berisi pertanyaan umum atau obrolan tanpa perubahan daftar, jawab dengan assistantMessage seperti asisten percakapan biasa dan kembalikan changes kosong. Jangan memaksakan item baru untuk setiap pesan.'
       'DAFTAR LAMA ADALAH SUMBER KEBENARAN. Jangan pernah mengganti daftar penuh. Keluarkan hanya operasi add, update, atau remove yang diperlukan.',
-      'Jika pengguna hanya menambah konteks atau barang baru, gunakan add dan pertahankan semua item yang tidak disebut. Jangan mengubah atau menghapus item lama secara implisit.',
+      'Jika pengguna hanya menambah konteks atau barang baru, gunakan add hanya untuk item baru dan pertahankan semua item yang tidak disebut. Jangan mengubah atau menghapus item lama secara implisit.',
+      'Bandingkan setiap ide dengan daftar yang sedang ada. Jika barang yang sama, jumlah dan konteksnya sudah ada, jangan tambahkan duplikat dan jangan menambah jumlah hanya karena pengguna mengulangi cerita. Tambah kuantitas hanya bila pengguna jelas berkata tambah lagi/ditambah sekian. Jika pengguna menyebut nilai baru sebagai pengganti, gunakan update ke jumlah akhir yang dimaksud.'
       'Gunakan update hanya bila pengguna jelas meminta mengubah jumlah, harga, kategori, atau satuan item yang sudah ada; targetItemId wajib tepat.',
       'Gunakan remove hanya jika pengguna jelas meminta menghapus item tertentu atau mengosongkan daftar. Jangan tafsirkan kalimat negatif seperti "jangan dihapus" sebagai izin hapus.',
       'Untuk kebutuhan rutin, hitung jumlah unit secara eksplisit. Contoh: makan 3 kali sehari selama 30 hari = 90 porsi; bila harga yang disebut pengguna Rp25.000/porsi, maka harga satuan adalah 25000 dan jumlah 90. Isi dailyFrequency=3, periodDays=30, quantity=90.',
@@ -323,12 +326,6 @@ export async function POST(request: Request) {
         periodDays,
       }]
     })
-
-    if (!changes.length && !parsed.clarifyingQuestion) {
-      return NextResponse.json({
-        error: 'Aku belum menemukan item yang cukup jelas dari instruksi itu. Coba sebut nama barang dan jumlahnya.',
-      }, { status: 422 })
-    }
 
     return NextResponse.json({
       assistantMessage: parsed.assistantMessage.slice(0, 600),
