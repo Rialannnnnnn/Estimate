@@ -45,6 +45,7 @@ interface Material {
   quantity: number
   unit_price: number
   actual_price: number | null
+  actual_price_recorded_at?: string | null
   category: string
   is_purchased: boolean
 }
@@ -508,7 +509,12 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                     if (updates.category !== undefined) dbUpdates.category = updates.category
                     if (updates.quantity !== undefined) dbUpdates.quantity = updates.quantity
                     if (updates.unitPrice !== undefined) dbUpdates.unit_price = updates.unitPrice
-                    if ('actualPrice' in updates) dbUpdates.actual_price = updates.actualPrice ?? null
+                    if ('actualPrice' in updates) {
+                      dbUpdates.actual_price = updates.actualPrice ?? null
+                      dbUpdates.actual_price_recorded_at = updates.actualPrice == null
+                        ? null
+                        : new Date().toISOString()
+                    }
                     if (updates.isPurchased !== undefined) dbUpdates.is_purchased = updates.isPurchased
                     void handleUpdateMaterial(material.id, dbUpdates)
                   }}
