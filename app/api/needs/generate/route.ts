@@ -46,12 +46,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function mayRemoveItems(description: string) {
-  if (/\\b(jangan|tanpa|tidak|nggak|gak|ga)\\b.{0,24}\\b(hapus|menghapus|hilangkan|buang)\\b/i.test(description)) return false
-  return /\\b(hapus|menghapus|hilangkan|buang|tidak perlu lagi|nggak perlu lagi|ga perlu lagi|gak perlu lagi|sudah tidak butuh)\\b/i.test(description)
+function hasNegatedRemoveIntent(description: string) {
+  return /\b(jangan|tanpa|tidak|nggak|gak|ga)\b.{0,24}\b(hapus|menghapus|hilangkan|buang)\b/i.test(description)
 }
+
+function mayRemoveItems(description: string) {
+  if (hasNegatedRemoveIntent(description)) return false
+  return /\b(hapus|menghapus|hilangkan|buang|tidak perlu lagi|nggak perlu lagi|ga perlu lagi|gak perlu lagi|sudah tidak butuh)\b/i.test(description)
+}
+
 function isExplicitBulkReset(description: string) {
-  return /(hapus semua|kosongkan daftar|reset daftar|mulai ulang daftar|mulai dari awal|ganti seluruh daftar|buat ulang seluruh daftar)/i.test(description)
+  return !hasNegatedRemoveIntent(description)
+    && /(hapus semua|kosongkan daftar|reset daftar|mulai ulang daftar|mulai dari awal|ganti seluruh daftar|buat ulang seluruh daftar)/i.test(description)
 }
 
 export async function POST(request: Request) {
@@ -72,6 +78,9 @@ export async function POST(request: Request) {
     const period = body.period === 'daily' ? 'daily' : body.period === 'monthly' ? 'monthly' : null
     const templateType = typeof body.templateType === 'string' ? body.templateType : null
     const currentItems = Array.isArray(body.currentItems) ? body.currentItems : []
+    const budgetLimit = Number.isFinite(Number(body.budgetLimit)) && Number(body.budgetLimit) > 0
+      ? Math.min(1_000_000_000, Math.floor(Number(body.budgetLimit)))
+      : null
     const conversation = Array.isArray(body.conversation) ? body.conversation : []
 
     if (!description || description.length > 1500 || !period || currentItems.length > 100) {
@@ -128,6 +137,7 @@ export async function POST(request: Request) {
     const prompt = [
       'Periode rencana: ' + (period === 'daily' ? 'harian' : 'bulanan'),
       'Template: ' + (templateType ?? 'tidak dipilih'),
+      'Batas budget (panduan, tidak wajib dihabiskan): ' + (budgetLimit ? `Rp ${budgetLimit.toLocaleString('id-ID')}` : 'belum ditentukan'),
       'Daftar yang sedang ada (sumber kebenaran, jangan hilangkan item yang tidak disebut):',
       JSON.stringify(normalizedItems),
       'Katalog item resmi (hanya gunakan key di sini):',
@@ -195,8 +205,8 @@ export async function POST(request: Request) {
     }
 
     const existingIds = new Set(normalizedItems.map((item) => item.id))
-    const canRemove = mayRemoveItems(description)
     const canBulkReset = isExplicitBulkReset(description)
+    const canRemove = mayRemoveItems(description) || canBulkReset
     const changes = parsed.changes.slice(0, 40).flatMap((value) => {
       if (!isRecord(value)) return []
       const action = value.action
