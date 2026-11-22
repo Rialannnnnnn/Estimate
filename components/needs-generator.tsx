@@ -6,10 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { Material } from '@/lib/types'
 import type { TemplateType } from '@/lib/templates'
-import { analyzeBudget, generateRecommendations, itemTotal, type DetectedContext, type Priority } from '@/lib/recommendations'
+import { analyzeBudget, generateRecommendations, itemTotal, type DetectedContext, type Priority, type PriceObservation } from '@/lib/recommendations'
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/budget'
 import { createClient } from '@/lib/supabase/client'
-import type { PriceObservation } from '@/lib/recommendations'
 
 type Props = {
   period: 'daily' | 'monthly'
@@ -22,7 +21,14 @@ type Props = {
   onBack: () => void
 }
 
-type ReviewItem = Material & { priority?: Priority; reason?: string }
+type ReviewItem = Material & {
+  priority?: Priority
+  reason?: string
+  priceSource?: 'personal-history' | 'catalogue'
+  priceSampleCount?: number
+  priceRangeMinimum?: number
+  priceRangeMaximum?: number
+}
 
 const rupiah = (value: number) => `Rp ${value.toLocaleString('id-ID')}`
 
