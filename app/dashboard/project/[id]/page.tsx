@@ -281,6 +281,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   }
 
   const calculationMaterials = materials.map((material) => ({
+    name: material.name,
+    category: material.category,
     unitPrice: Number(material.unit_price) || 0,
     actualPrice: material.actual_price == null ? null : Number(material.actual_price),
     quantity: Number(material.quantity) || 0,
