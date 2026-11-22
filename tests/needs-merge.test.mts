@@ -130,3 +130,77 @@ test('custom item is added without an invented price', () => {
   assert.equal(item.unitPrice, 0)
   assert.equal(item.priceSource, 'manual')
 })
+
+
+test('recurrent meal uses the stated frequency, days and unit price', () => {
+  const meal: NeedsGenerationChange = {
+    action: 'add',
+    itemKey: 'custom',
+    targetItemId: null,
+    name: 'Makan',
+    category: 'Makanan & Minuman',
+    unit: 'porsi',
+    quantity: 90,
+    priority: 'essential',
+    userProvidedUnitPrice: 25000,
+    dailyFrequency: 3,
+    periodDays: 30,
+  }
+  const result = applyNeedsChanges([], [meal], { period: 'monthly', now })
+  assert.equal(result.length, 1)
+  assert.equal(result[0].quantity, 90)
+  assert.equal(result[0].unitPrice, 25000)
+  assert.equal(result[0].category, 'Makanan & Minuman · porsi')
+  assert.equal(result[0].dailyFrequency, 3)
+  assert.equal(result[0].periodDays, 30)
+  assert.equal(result[0].quantity * result[0].unitPrice, 2250000)
+})
+
+test('a project can produce separate wood and glue materials without invented prices', () => {
+  const projectMaterials: NeedsGenerationChange[] = [
+    {
+      action: 'add', itemKey: 'custom', targetItemId: null,
+      name: 'Kayu', category: 'Perlengkapan Proyek', unit: 'batang',
+      quantity: 4, priority: 'essential',
+    },
+    {
+      action: 'add', itemKey: 'custom', targetItemId: null,
+      name: 'Lem kayu', category: 'Perlengkapan Proyek', unit: 'botol',
+      quantity: 1, priority: 'essential',
+    },
+  ]
+  const result = applyNeedsChanges([], projectMaterials, { period: 'monthly', now })
+  assert.equal(result.length, 2)
+  assert.equal(result[0].name, 'Kayu')
+  assert.equal(result[1].name, 'Lem kayu')
+  assert.equal(result[0].unitPrice, 0)
+  assert.equal(result[1].unitPrice, 0)
+  assert.notEqual(result[0].category, result[1].category)
+})
+
+test('adding more of a recurring item preserves and combines its recurrence', () => {
+  const existingMeal: MergeableNeedsItem[] = [{
+    id: 'meal-1',
+    name: 'Makan',
+    category: 'Makanan & Minuman · porsi',
+    quantity: 90,
+    unitPrice: 25000,
+    actualPrice: null,
+    isPurchased: false,
+    dailyFrequency: 3,
+    periodDays: 30,
+    priority: 'essential',
+  }]
+  const extraMeal: NeedsGenerationChange = {
+    action: 'add', itemKey: 'custom', targetItemId: null,
+    name: 'Makan', category: 'Makanan & Minuman', unit: 'porsi',
+    quantity: 30, priority: 'essential',
+    dailyFrequency: 1, periodDays: 30,
+  }
+  const result = applyNeedsChanges(existingMeal, [extraMeal], { period: 'monthly', now })
+  assert.equal(result.length, 1)
+  assert.equal(result[0].quantity, 120)
+  assert.equal(result[0].dailyFrequency, 4)
+  assert.equal(result[0].periodDays, 30)
+  assert.equal(result[0].unitPrice, 25000)
+})
