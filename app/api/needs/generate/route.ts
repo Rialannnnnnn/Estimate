@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getRecommendationCatalog, ITEMS } from '@/lib/recommendations'
 
-const MODEL = 'openai/gpt-5.5'
+const MODEL = 'gemini-3.6-flash'
 
 const responseSchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
     assistantMessage: { type: 'string' },
-    clarifyingQuestion: { type: ['string', 'null'] },
+    clarifyingQuestion: { type: 'string' },
     changes: {
       type: 'array',
       items: {
@@ -18,15 +18,15 @@ const responseSchema = {
         properties: {
           action: { type: 'string', enum: ['add', 'update', 'remove'] },
           itemKey: { type: 'string' },
-          targetItemId: { type: ['string', 'null'] },
+          targetItemId: { type: 'string' },
           name: { type: 'string' },
           category: { type: 'string' },
           unit: { type: 'string' },
           quantity: { type: 'integer', minimum: 1, maximum: 10000 },
           priority: { type: 'string', enum: ['essential', 'optional'] },
-          userProvidedUnitPrice: { type: ['number', 'null'], minimum: 0, maximum: 1000000000 },
-          dailyFrequency: { type: ['integer', 'null'], minimum: 1, maximum: 24 },
-          periodDays: { type: ['integer', 'null'], minimum: 1, maximum: 366 },
+          userProvidedUnitPrice: { type: 'number', minimum: 0, maximum: 1000000000 },
+          dailyFrequency: { type: 'integer', minimum: 0, maximum: 24 },
+          periodDays: { type: 'integer', minimum: 0, maximum: 366 },
         },
         required: ['action', 'itemKey', 'targetItemId', 'name', 'category', 'unit', 'quantity', 'priority', 'userProvidedUnitPrice', 'dailyFrequency', 'periodDays'],
       },
@@ -206,15 +206,13 @@ export async function POST(request: Request) {
       return [{ role: entry.role, content: entry.content.slice(0, 1600) }]
     })
 
-    // Vercel Functions expose the runtime OIDC token on the incoming Request header.
-    // Keep AI_GATEWAY_API_KEY for local development and external environments.
-    const apiKey =
-      process.env.AI_GATEWAY_API_KEY
-      || request.headers.get('x-vercel-oidc-token')
-      || process.env.VERCEL_OIDC_TOKEN
+    // Google AI Studio API key stays server-side in Vercel's GEMINI_API_KEY env var.
+    const apiKey = process.env.GEMINI_API_KEY?.trim()
     if (!apiKey) {
       return NextResponse.json({
-        error: 'Koneksi AI Gateway belum tersedia. Pastikan Vercel OIDC aktif atau AI_GATEWAY_API_KEY sudah diatur.',
+        code: 'gemini_api_key_missing',
+        error: 'Kunci Gemini belum dipasang. Tambahkan GEMINI_API_KEY dari Google AI Studio ke Environment Variables Vercel.',
+        setupUrl: 'https://aistudio.google.com/api-keys',
       }, { status: 503 })
     }
 
@@ -259,86 +257,101 @@ export async function POST(request: Request) {
       'Pahami instruksi terbaru sebagai perubahan terhadap daftar yang sedang ada. Keluarkan hanya perubahan yang diperlukan.',
     ].join('\n\n')
 
-    const response = await fetch('https://ai-gateway.vercel.sh/v1/chat/completions', {
+    const modelInput = [
+      system,
+      'Riwayat percakapan sebelumnya (gunakan sebagai konteks; jangan mengulang perubahan yang sudah diterapkan):',
+      ...safeConversation.map((turn) => `${turn.role === 'user' ? 'Pengguna' : 'EstiMate'}: ${turn.content}`),
+      prompt,
+    ].filter(Boolean).join('\\n\\n')
+
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        'x-goog-api-key': apiKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: MODEL,
-        temperature: 0.1,
-        reasoning_effort: 'high',
-        max_tokens: 3600,
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'estimate_needs_changes',
-            strict: true,
-            schema: responseSchema,
-          },
+        input: modelInput,
+        store: false,
+        stream: false,
+        generation_config: {
+          thinking_level: 'high',
+          max_output_tokens: 8192,
         },
-        messages: [
-          { role: 'system', content: system },
-          ...safeConversation,
-          { role: 'user', content: prompt },
-        ],
+        response_format: {
+          type: 'text',
+          mime_type: 'application/json',
+          schema: responseSchema,
+        },
       }),
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(45000),
     })
 
     if (!response.ok) {
-      const errorText = (await response.text()).slice(0, 1000)
-      let gatewayFailure: unknown = null
-      try {
-        gatewayFailure = JSON.parse(errorText)
-      } catch {
-        gatewayFailure = null
-      }
-      const gatewayError = isRecord(gatewayFailure) && isRecord(gatewayFailure.error)
-        ? gatewayFailure.error
-        : null
-      const failureType = gatewayError && typeof gatewayError.type === 'string'
-        ? gatewayError.type
-        : null
+      const errorText = (await response.text()).slice(0, 1500)
+      console.error('Gemini API request failed:', response.status, errorText)
 
-      console.error('AI Gateway request failed:', response.status, errorText)
-
-      if (response.status === 403 && failureType === 'customer_verification_required') {
+      if (response.status === 401 || response.status === 403) {
         return NextResponse.json({
-          code: 'gateway_verification_required',
-          error: 'Akun/tim Vercel perlu menyelesaikan verifikasi metode pembayaran agar AI EstiMate bisa digunakan. Daftar kamu tetap aman dan belum diubah.',
-          setupUrl: 'https://vercel.com/d?to=%2F%5Bteam%5D%2F~%2Fai%3Fmodal%3Dadd-credit-card',
-        }, { status: 403 })
+          code: 'gemini_api_key_invalid',
+          error: 'Google menolak kunci Gemini. Periksa GEMINI_API_KEY di Vercel dan pastikan dibuat melalui Google AI Studio.',
+        }, { status: 502 })
+      }
+
+      if (response.status === 429) {
+        return NextResponse.json({
+          code: 'gemini_free_quota_exceeded',
+          error: 'Kuota gratis Gemini sedang mencapai batas. Tunggu sampai kuota tersedia lagi, lalu coba ulang. Daftarmu tetap aman.',
+        }, { status: 429 })
+      }
+
+      if (response.status === 503 || response.status === 504) {
+        return NextResponse.json({
+          code: 'gemini_temporarily_unavailable',
+          error: 'Layanan Gemini sedang sibuk. Coba lagi sebentar; daftar kamu belum diubah.',
+        }, { status: 503 })
       }
 
       return NextResponse.json({
-        error: 'AI Gateway menolak permintaan (HTTP ' + response.status + '). Daftar kamu tetap aman dan belum diubah.',
+        code: 'gemini_request_failed',
+        error: 'Gemini belum dapat memproses permintaan (HTTP ' + response.status + '). Daftar kamu tetap aman dan belum diubah.',
       }, { status: 502 })
     }
 
     const payload: unknown = await response.json()
-    if (!isRecord(payload) || !Array.isArray(payload.choices) || !isRecord(payload.choices[0])) {
-      return NextResponse.json({ error: 'Respons AI tidak dapat dibaca. Daftar kamu tetap aman.' }, { status: 502 })
+    if (!isRecord(payload) || !Array.isArray(payload.steps)) {
+      return NextResponse.json({ error: 'Respons Gemini tidak dapat dibaca. Daftar kamu tetap aman.' }, { status: 502 })
     }
 
-    const firstChoice = payload.choices[0]
-    const message = firstChoice.message
-    if (!isRecord(message) || typeof message.content !== 'string') {
-      return NextResponse.json({ error: 'AI belum memberikan perubahan yang valid. Daftar kamu tetap aman.' }, { status: 502 })
+    if (payload.status !== 'completed') {
+      const status = typeof payload.status === 'string' ? payload.status : 'unknown'
+      console.error('Gemini interaction did not complete:', status)
+      return NextResponse.json({ error: 'Gemini belum menyelesaikan jawaban. Daftar kamu tetap aman; coba kirim ulang.' }, { status: 502 })
+    }
+
+    const outputText = payload.steps.flatMap((step) => {
+      if (!isRecord(step) || step.type !== 'model_output' || !Array.isArray(step.content)) return []
+      return step.content.flatMap((part) =>
+        isRecord(part) && part.type === 'text' && typeof part.text === 'string' ? [part.text] : [],
+      )
+    }).join('\\n')
+
+    if (!outputText) {
+      return NextResponse.json({ error: 'Gemini tidak mengembalikan teks jawaban. Daftar kamu tetap aman.' }, { status: 502 })
     }
 
     let parsed: unknown
     try {
-      parsed = JSON.parse(message.content)
+      parsed = JSON.parse(outputText)
     } catch {
-      return NextResponse.json({ error: 'Format hasil AI tidak valid. Daftar kamu tetap aman.' }, { status: 502 })
+      return NextResponse.json({ error: 'Format jawaban Gemini tidak valid. Daftar kamu tetap aman.' }, { status: 502 })
     }
 
     if (!isRecord(parsed) || !Array.isArray(parsed.changes)
       || typeof parsed.assistantMessage !== 'string'
-      || !(typeof parsed.clarifyingQuestion === 'string' || parsed.clarifyingQuestion === null)) {
-      return NextResponse.json({ error: 'Struktur hasil AI tidak sesuai. Daftar kamu tetap aman.' }, { status: 502 })
+      || typeof parsed.clarifyingQuestion !== 'string') {
+      return NextResponse.json({ error: 'Struktur jawaban Gemini tidak sesuai. Daftar kamu tetap aman.' }, { status: 502 })
     }
 
     const existingIds = new Set(normalizedItems.map((item) => item.id))
@@ -348,7 +361,9 @@ export async function POST(request: Request) {
       if (!isRecord(value)) return []
       const action = value.action
       const itemKey = typeof value.itemKey === 'string' ? value.itemKey : ''
-      const targetItemId = typeof value.targetItemId === 'string' ? value.targetItemId : null
+      const targetItemId = typeof value.targetItemId === 'string' && value.targetItemId.trim()
+        ? value.targetItemId.trim()
+        : null
       const name = typeof value.name === 'string' ? value.name.trim().slice(0, 100) : ''
       const rawCategory = typeof value.category === 'string' ? value.category.trim().slice(0, 80) : ''
       const rawUnit = typeof value.unit === 'string' ? value.unit.trim().slice(0, 40) : ''
@@ -356,8 +371,8 @@ export async function POST(request: Request) {
       const unit = canonicalizeUnit(rawUnit, name)
       const rawQuantity = Number(value.quantity)
       const explicitPrices = extractExplicitPrices(description)
-      const modelPrice = value.userProvidedUnitPrice == null ? null : Number(value.userProvidedUnitPrice)
-      const userProvidedUnitPrice = modelPrice != null && explicitPrices.includes(Math.round(modelPrice))
+      const modelPrice = Number(value.userProvidedUnitPrice)
+      const userProvidedUnitPrice = modelPrice > 0 && explicitPrices.includes(Math.round(modelPrice))
         ? Math.round(modelPrice)
         : null
       const dailyFrequency = Number.isInteger(Number(value.dailyFrequency)) && Number(value.dailyFrequency) >= 1
@@ -396,7 +411,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       assistantMessage: parsed.assistantMessage.slice(0, 600),
-      clarifyingQuestion: parsed.clarifyingQuestion?.slice(0, 300) ?? null,
+      clarifyingQuestion: parsed.clarifyingQuestion.slice(0, 300) || null,
       changes,
       mode: normalizedItems.length ? 'incremental' : 'initial',
       allowBulkReset: canBulkReset,
