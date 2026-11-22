@@ -217,7 +217,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
       setAssistantMessage(reply)
       const userTurn: ConversationTurn = { role: 'user', content: prompt }
       const assistantTurn: ConversationTurn = { role: 'assistant', content: reply }
-      setConversation((current) => [...current, userTurn, assistantTurn].slice(-8))
+      setConversation((current) => [...current, userTurn, assistantTurn].slice(-16))
       setCriteria('')
 
       const personalCount = nextItems.filter((item) => item.priceSource === 'personal-history').length
@@ -242,7 +242,19 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
           ? `Batas anggaran sementara: ${budget ? rupiah(budget) : 'belum ada'} (contoh dari template). Kembali ke form untuk memasukkan budget kamu sendiri.`
           : `Batas anggaran pilihanmu: ${budget ? rupiah(budget) : 'belum ada'}. Rekomendasi tidak wajib menghabiskan seluruh budget.`}
       </p>
-      <Textarea value={criteria} onChange={(event) => setCriteria(event.target.value)} aria-label="Instruksi untuk AI EstiMate" placeholder="Contoh: Aku makan 3 kali sehari, sekali makan Rp25.000. Bulan ini juga membuat proyek kursi. Apa saja bahan yang perlu disiapkan?" className="min-h-28 rounded-2xl border border-border bg-background p-4 text-sm leading-relaxed" />
+      {conversation.length > 0 && (
+        <div className="mb-4 max-h-[420px] space-y-3 overflow-y-auto rounded-2xl border border-border/70 bg-background p-4" aria-label="Riwayat percakapan EstiMate">
+          {conversation.map((turn, index) => (
+            <div key={`${turn.role}-${index}`} className={`flex ${turn.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${turn.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'}`}>
+                <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide opacity-70">{turn.role === 'user' ? 'Kamu' : 'EstiMate AI'}</span>
+                <p className="whitespace-pre-wrap">{turn.content}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <Textarea value={criteria} onChange={(event) => setCriteria(event.target.value)} aria-label="Instruksi untuk AI EstiMate" placeholder="Ceritakan semua rencanamu di sini. Contoh: aku makan 3 kali sehari, sekali makan Rp25 ribu. Aku juga mau bikin kursi, apa saja bahannya? Lalu tambahkan telur 2 kg." className="min-h-28 rounded-2xl border border-border bg-background p-4 text-sm leading-relaxed" />
       <div className="mt-4 flex flex-wrap gap-3"><Button onClick={() => void runGenerate()} disabled={isGenerating || !criteria.trim()} className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"><Send className="mr-2 h-4 w-4" /> {isGenerating ? 'AI sedang memahami...' : 'Kirim ke AI EstiMate'}</Button><Button variant="ghost" onClick={onBack} className="rounded-full">Kembali ubah rencana</Button></div>
       {assistantMessage && <div className="mt-4 rounded-2xl border border-border bg-secondary px-4 py-3 text-sm leading-relaxed" role="status"><span className="mb-1 block text-xs font-semibold text-primary">AI ESTIMATE</span>{assistantMessage}</div>}
 
