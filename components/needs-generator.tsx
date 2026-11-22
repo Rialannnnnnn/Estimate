@@ -201,9 +201,14 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
 
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) {
-        if (payload.code === 'gateway_verification_required') {
-          setAssistantMessage(typeof payload.error === 'string' ? payload.error : 'Akun/tim Vercel perlu menyelesaikan verifikasi metode pembayaran.')
-          setAssistantActionUrl(typeof payload.setupUrl === 'string' ? payload.setupUrl : '')
+        if (payload.code === 'gemini_api_key_missing') {
+          setAssistantMessage('Koneksi Gemini belum diatur. Buat API key gratis di Google AI Studio, lalu tambahkan sebagai GEMINI_API_KEY di Vercel → Project EstiMate → Settings → Environment Variables. Jangan tempelkan key ke chat.')
+          setAssistantActionUrl(typeof payload.setupUrl === 'string' ? payload.setupUrl : 'https://aistudio.google.com/api-keys')
+          return
+        }
+        if (payload.code === 'gemini_api_key_invalid') {
+          setAssistantMessage('Kunci Gemini ditolak Google. Buat key baru di Google AI Studio dan perbarui GEMINI_API_KEY di Vercel. Jangan bagikan key di chat.')
+          setAssistantActionUrl('https://aistudio.google.com/api-keys')
           return
         }
         throw new Error(typeof payload.error === 'string' ? payload.error : 'AI EstiMate tidak dapat memproses instruksi.')
@@ -263,13 +268,13 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
       )}
       <Textarea value={criteria} onChange={(event) => setCriteria(event.target.value)} aria-label="Instruksi untuk AI EstiMate" placeholder="Ceritakan semua rencanamu di sini. Contoh: aku makan 3 kali sehari, sekali makan Rp25 ribu. Aku juga mau bikin kursi, apa saja bahannya? Lalu tambahkan telur 2 kg." className="min-h-28 rounded-2xl border border-border bg-background p-4 text-sm leading-relaxed" />
       <div className="mt-4 flex flex-wrap gap-3"><Button onClick={() => void runGenerate()} disabled={isGenerating || !criteria.trim()} className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"><Send className="mr-2 h-4 w-4" /> {isGenerating ? 'AI sedang memahami...' : 'Kirim ke AI EstiMate'}</Button><Button variant="ghost" onClick={onBack} className="rounded-full">Kembali ubah rencana</Button></div>
-      {assistantMessage && <div className="mt-4 rounded-2xl border border-border bg-secondary px-4 py-3 text-sm leading-relaxed" role="status"><span className="mb-1 block text-xs font-semibold text-primary">AI ESTIMATE</span>{assistantMessage}{assistantActionUrl && <a href={assistantActionUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90">Buka pengaturan AI Gateway <span aria-hidden="true" className="ml-2">↗</span></a>}</div>}
+      {assistantMessage && <div className="mt-4 rounded-2xl border border-border bg-secondary px-4 py-3 text-sm leading-relaxed" role="status"><span className="mb-1 block text-xs font-semibold text-primary">AI ESTIMATE</span>{assistantMessage}{assistantActionUrl && <a href={assistantActionUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90">Buka Google AI Studio untuk membuat API key <span aria-hidden="true" className="ml-2">↗</span></a>}</div>}
 
       {priceHistoryNotice && <p className="mt-3 rounded-xl border border-border bg-secondary px-3 py-2 text-xs leading-relaxed text-muted-foreground" role="status">{priceHistoryNotice}</p>}
 
       {items.length > 0 && <div className="mt-8 border-t border-border/70 pt-7">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><h3 className="font-semibold">Review item belanja</h3><p className="text-sm text-muted-foreground">Harga adalah estimasi per satuan. Kamu masih bisa mengubah semuanya.</p></div><p className="font-mono text-sm text-primary">Total estimasi {rupiah(total)}</p></div>
-        <p className="mb-4 flex items-start gap-2 rounded-2xl bg-secondary px-4 py-3 text-xs leading-relaxed text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" /><span>AI membaca instruksi serta nama, kategori, jumlah, dan status item untuk memahami rencana. Harga pribadi dan Harga Asli tidak dikirim ke model. Item yang tidak disebut tetap dipertahankan. Harga hanya ditentukan aplikasi dari katalog atau riwayat pribadimu yang cocok; AI tidak mengarang harga.</span></p>
+        <p className="mb-4 flex items-start gap-2 rounded-2xl bg-secondary px-4 py-3 text-xs leading-relaxed text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" /><span>AI EstiMate memakai Google Gemini untuk memahami instruksi dan daftar kebutuhan. Nama item, kategori, jumlah, dan percakapan dikirim ke Google untuk diproses; Harga Asli dan riwayat harga pribadi tidak dikirim. Pada Free tier, Google dapat menggunakan konten yang dikirim untuk meningkatkan produknya. Item yang tidak disebut tetap dipertahankan. Harga ditentukan aplikasi, bukan dikarang AI.</span></p>
         <div className="space-y-3">{items.map((item, index) => {
           const isOptional = item.priority === 'optional'
           return (
