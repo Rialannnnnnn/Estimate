@@ -145,7 +145,9 @@ export function applyNeedsChanges(
       continue
     }
 
-    const newItem = recommendation ?? createCustomItem(change, now)
+    const newItem = recommendation
+      ? { ...recommendation, priority: change.priority }
+      : createCustomItem(change, now)
     const existingIndex = next.findIndex((item) => sameIdentity(item, newItem) && !item.isPurchased)
 
     if (existingIndex >= 0) {
@@ -153,8 +155,7 @@ export function applyNeedsChanges(
       next[existingIndex] = {
         ...existing,
         quantity: Math.min(10000, Math.max(1, existing.quantity) + newItem.quantity),
-        // Never overwrite a price that the user manually adjusted.
-        unitPrice: existing.priceSource === 'manual' ? existing.unitPrice : existing.unitPrice,
+        // Keep the existing price, especially when the user has adjusted it manually.
         priority: existing.priority ?? newItem.priority,
       }
     } else {
