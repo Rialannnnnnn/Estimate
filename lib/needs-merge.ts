@@ -1,11 +1,11 @@
-import type { Material } from '@/lib/types'
+import type { Material } from './types.ts'
 import {
   createCatalogRecommendation,
   ITEMS,
   type Period,
   type PriceObservation,
   type Priority,
-} from '@/lib/recommendations'
+} from './recommendations.ts'
 
 export type NeedsGenerationChange = {
   action: 'add' | 'update' | 'remove'
