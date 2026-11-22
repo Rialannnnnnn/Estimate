@@ -98,7 +98,8 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
               className="border-2 border-border bg-transparent h-12"
             />
             <Input
-            type="number"
+            type="text"
+            inputMode="numeric"
             value={editPrice}
             onChange={(e) => setEditPrice(formatCurrencyInput(e.target.value))}
             placeholder="Harga estimasi"
@@ -205,7 +206,13 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
                 size="sm"
                 aria-label="Ubah kebutuhan"
                 className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  setEditName(material.name)
+                  setEditCategory(material.category ?? '')
+                  setEditQuantity(material.quantity.toString())
+                  setEditPrice(formatCurrencyInput(unitPrice))
+                  setIsEditing(true)
+                }}
               >
                 <Edit2 className="w-4 h-4" />
               </Button>
