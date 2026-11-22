@@ -37,7 +37,6 @@ type CurrentItem = {
   name: string
   category: string
   quantity: number
-  unitPrice: number
   isPurchased: boolean
   itemKey?: string
 }
@@ -96,7 +95,6 @@ export async function POST(request: Request) {
       return [{
         id, name, category,
         quantity: Math.max(1, Math.min(10000, Math.floor(Number(value.quantity) || 1))),
-        unitPrice: Math.max(0, Number(value.unitPrice) || 0),
         isPurchased: value.isPurchased === true,
         ...(typeof value.itemKey === 'string' ? { itemKey: value.itemKey } : {}),
       }]
@@ -129,6 +127,7 @@ export async function POST(request: Request) {
       'Untuk item katalog, isi name/category/unit sesuai katalog. Gunakan variant/satuan yang benar saat tersedia (misalnya telur per butir atau per kg). Jika satuan tidak jelas dan memengaruhi harga, minta klarifikasi.',
       'Untuk barang custom di luar katalog, gunakan itemKey "custom", nama/category/unit yang masuk akal, dan jangan mengarang harga.',
       'Kuantitas harus angka positif. Jangan mengubah budget pengguna dan jangan mengarang harga, harga pasar, atau harga aktual. Harga akan ditentukan aplikasi dari katalog atau riwayat pembelian pribadi.',
+      'Harga pribadi dan Harga Asli tidak dikirim ke model. Jangan menghitung atau menebak nominal harga.',
       'Perubahan harus mengarah ke targetItemId yang benar dari daftar saat ini untuk update/remove. Jangan menebak ID atau mengubah item lain.',
       'Jika instruksi ambigu, tanyakan satu pertanyaan singkat di clarifyingQuestion dan jangan membuat perubahan yang berisiko.',
       'Balas assistantMessage dengan bahasa Indonesia yang singkat, ramah, dan menyebut perubahan yang dilakukan.',
