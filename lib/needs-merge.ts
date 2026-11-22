@@ -41,7 +41,7 @@ export type ApplyNeedsChangesOptions = {
 }
 
 const normalize = (value: string) => value.toLocaleLowerCase('id').replace(/\s+/g, ' ').trim()
-const knownUnits = new Set(['pcs', 'buah', 'unit', 'porsi', 'butir', 'kg', 'gram', 'gr', 'liter', 'ml', 'botol', 'lembar', 'batang', 'meter', 'cm', 'm²', 'm2', 'tube', 'pack', 'paket', 'roll', 'set', 'kali', 'hari', 'bulan', 'perjalanan', 'galon', 'tabung', 'bungkus', 'kaleng', 'pasang', 'box', 'rim', 'jam'])
+const knownUnits = new Set(['pcs', 'buah', 'unit', 'porsi', 'butir', 'kg', 'gram', 'gr', 'liter', 'ml', 'botol', 'lembar', 'batang', 'meter', 'cm', 'm²', 'm2', 'tube', 'pack', 'paket', 'roll', 'set', 'kali', 'hari', 'bulan', 'perjalanan', 'galon', 'tabung', 'bungkus', 'kaleng', 'pasang', 'box', 'rim', 'jam', 'gelas', 'token', 'pouch', 'karung 5 kg', 'ikat', 'bungkus isi 10', 'papan', 'strip', 'orang', 'malam', 'tiket', 'setoran', 'alokasi', 'lbr', 'halaman', 'hal', 'eksemplar', 'rangkap', 'cup', 'trip', 'l', 'kilo', 'bks', 'karung', 'btr', 'potong'])
 
 function categoryParts(category: string, fallbackUnit = 'pcs') {
   const parts = category.split(' · ')
@@ -84,7 +84,7 @@ function createCustomItem(change: NeedsGenerationChange, now: number): Mergeable
     isPurchased: false,
     priority: change.priority,
     reason: 'ditambahkan berdasarkan instruksi',
-    priceSource: change.userProvidedUnitPrice != null ? 'manual' : 'manual',
+    priceSource: 'manual',
     priceSampleCount: 0,
     ...(change.dailyFrequency && change.periodDays ? {
       dailyFrequency: change.dailyFrequency,
@@ -210,11 +210,22 @@ export function applyNeedsChanges(
 
     if (existingIndex >= 0) {
       const existing = next[existingIndex]
+      const sameRecurrencePeriod = existing.periodDays != null
+        && newItem.periodDays != null
+        && existing.periodDays === newItem.periodDays
       next[existingIndex] = {
         ...existing,
         quantity: Math.min(10000, Math.max(1, existing.quantity) + newItem.quantity),
-        // Keep the existing price, especially when the user has adjusted it manually.
+        // An explicitly stated price is a deliberate update; otherwise keep the existing price.
+        unitPrice: newItem.priceSource === 'manual' && newItem.unitPrice > 0
+          ? newItem.unitPrice
+          : existing.unitPrice,
         priority: existing.priority ?? newItem.priority,
+        ...(sameRecurrencePeriod && existing.dailyFrequency && newItem.dailyFrequency
+          ? { dailyFrequency: Math.min(24, existing.dailyFrequency + newItem.dailyFrequency), periodDays: existing.periodDays }
+          : newItem.dailyFrequency && newItem.periodDays && !existing.dailyFrequency
+            ? { dailyFrequency: newItem.dailyFrequency, periodDays: newItem.periodDays }
+            : {}),
       }
     } else {
       next = [...next, newItem]
