@@ -15,13 +15,19 @@ export function calculateActualTotal(materials: Material[]): number {
   }, 0)
 }
 
+export function calculateProjectedTotal(materials: Material[]): number {
+  return materials.reduce((sum, item) => {
+    const unitPrice =
+      item.isPurchased && item.actualPrice != null
+        ? item.actualPrice
+        : (item.unitPrice ?? 0)
+
+    return sum + (unitPrice * Math.max(0, item.quantity || 0))
+  }, 0)
+}
+
 export function calculateRemainingBudget(budgetLimit: number, materials: Material[]): number {
-  const spent = calculateActualTotal(materials)
-  const estimatedRemaining = materials
-    .filter(m => !m.isPurchased)
-    .reduce((sum, item) => sum + ((item.unitPrice ?? 0) * item.quantity), 0)
-  
-  return budgetLimit - spent - estimatedRemaining
+  return budgetLimit - calculateProjectedTotal(materials)
 }
 
 export function getBudgetStatus(currentTotal: number, budgetLimit: number): BudgetStatus {
