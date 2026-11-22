@@ -28,19 +28,22 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
   )
 
   const handlePurchaseToggle = (checked: boolean) => {
+    // Changing purchase status must never invent or overwrite the actual price.
     onUpdate({
       ...material,
       isPurchased: checked,
-      actualPrice: checked ? (material.actualPrice ?? unitPrice) : null,
     })
-    if (checked && material.actualPrice == null) {
-      setActualPriceInput(unitPrice.toString())
-    }
   }
 
   const handleActualPriceChange = (value: string) => {
+    // Keep the field editable locally; save the amount when the user leaves it.
     setActualPriceInput(value)
-    const parsed = parseCurrencyInput(value)
+  }
+
+  const handleActualPriceCommit = () => {
+    const trimmedValue = actualPriceInput.trim()
+    const parsed = trimmedValue ? parseCurrencyInput(trimmedValue) : null
+
     onUpdate({
       ...material,
       actualPrice: parsed,
@@ -74,8 +77,9 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
     setIsEditing(false)
   }
 
-  const totalPrice = material.isPurchased && material.actualPrice != null
-    ? material.actualPrice * material.quantity
+  const hasActualPrice = material.isPurchased && material.actualPrice != null
+  const totalPrice = hasActualPrice
+    ? (material.actualPrice as number) * material.quantity
     : unitPrice * material.quantity
 
   if (isEditing) {
@@ -167,9 +171,14 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
             </div>
             
             {/* Total Price */}
-            <span className="font-mono font-bold text-base sm:text-lg text-foreground whitespace-nowrap">
-              {formatCurrency(totalPrice)}
-            </span>
+            <div className="shrink-0 text-right">
+              <span className="block font-mono font-bold text-base sm:text-lg text-foreground whitespace-nowrap">
+                {formatCurrency(totalPrice)}
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                {hasActualPrice ? 'Total aktual' : 'Total estimasi'}
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-3">
@@ -225,15 +234,27 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
           {/* Actual Price Input (shown when purchased) */}
           {material.isPurchased && (
             <div className="mt-4 pt-4 border-t border-border/50 flex flex-wrap items-center gap-3">
-              <span className="text-label text-muted-foreground">Harga Asli</span>
-              <Input
-                type="number"
-                inputMode="numeric"
-                value={actualPriceInput}
-                onChange={(e) => handleActualPriceChange(e.target.value)}
-                className="w-36 h-9 text-sm border-2 border-success bg-transparent font-mono"
-                placeholder="Harga asli"
-              />
+              <div className="flex w-full flex-wrap items-center gap-3">
+                <label htmlFor={`actual-price-${material.id}`} className="text-label text-muted-foreground">
+                  Harga Asli per Unit
+                </label>
+                <Input
+                  id={`actual-price-${material.id}`}
+                  type="text"
+                  inputMode="numeric"
+                  value={actualPriceInput}
+                  onChange={(e) => handleActualPriceChange(e.target.value)}
+                  onBlur={handleActualPriceCommit}
+                  className="w-40 h-9 text-sm border-2 border-success bg-transparent font-mono"
+                  placeholder="Isi harga yang dibayar"
+                  aria-describedby={`actual-price-hint-${material.id}`}
+                />
+                <p id={`actual-price-hint-${material.id}`} className="w-full text-xs text-muted-foreground">
+                  {hasActualPrice
+                    ? 'Harga aktual tersimpan. Ubah jika nominal pembayaran berbeda.'
+                    : 'Masukkan harga yang benar-benar dibayar. Estimasi tidak otomatis dianggap sebagai pengeluaran.'}
+                </p>
+              </div>
             </div>
           )}
         </div>
