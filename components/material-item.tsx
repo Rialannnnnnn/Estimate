@@ -12,7 +12,7 @@ import { Trash2, Edit2, Check, X, Plus, Minus } from 'lucide-react'
 interface MaterialItemProps {
   material: Material
   index?: number
-  onUpdate: (material: Material) => void
+  onUpdate: (updates: Partial<Material>) => void
   onDelete: (id: string) => void
 }
 
@@ -29,10 +29,7 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
 
   const handlePurchaseToggle = (checked: boolean) => {
     // Changing purchase status must never invent or overwrite the actual price.
-    onUpdate({
-      ...material,
-      isPurchased: checked,
-    })
+    onUpdate({ isPurchased: checked })
   }
 
   const handleActualPriceChange = (value: string) => {
@@ -44,23 +41,16 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
     const trimmedValue = actualPriceInput.trim()
     const parsed = trimmedValue ? parseCurrencyInput(trimmedValue) : null
 
-    onUpdate({
-      ...material,
-      actualPrice: parsed,
-    })
+    onUpdate({ actualPrice: parsed })
   }
 
   const handleQuantityChange = (delta: number) => {
     const newQty = Math.max(1, material.quantity + delta)
-    onUpdate({
-      ...material,
-      quantity: newQty,
-    })
+    onUpdate({ quantity: newQty })
   }
 
   const handleSaveEdit = () => {
     onUpdate({
-      ...material,
       name: editName.trim() || material.name,
       category: editCategory.trim() || 'item',
       quantity: Math.max(1, Number(editQuantity) || 1),
