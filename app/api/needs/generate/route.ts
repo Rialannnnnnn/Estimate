@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getRecommendationCatalog, ITEMS } from '@/lib/recommendations'
 
-const MODEL = 'openai/gpt-5.4-mini'
+const MODEL = 'openai/gpt-5.5'
 
 const responseSchema = {
   type: 'object',
@@ -24,8 +24,11 @@ const responseSchema = {
           unit: { type: 'string' },
           quantity: { type: 'integer', minimum: 1, maximum: 10000 },
           priority: { type: 'string', enum: ['essential', 'optional'] },
+          userProvidedUnitPrice: { type: ['number', 'null'], minimum: 0, maximum: 1000000000 },
+          dailyFrequency: { type: ['integer', 'null'], minimum: 1, maximum: 24 },
+          periodDays: { type: ['integer', 'null'], minimum: 1, maximum: 366 },
         },
-        required: ['action', 'itemKey', 'targetItemId', 'name', 'category', 'unit', 'quantity', 'priority'],
+        required: ['action', 'itemKey', 'targetItemId', 'name', 'category', 'unit', 'quantity', 'priority', 'userProvidedUnitPrice', 'dailyFrequency', 'periodDays'],
       },
     },
   },
@@ -39,6 +42,42 @@ type CurrentItem = {
   quantity: number
   isPurchased: boolean
   itemKey?: string
+}
+
+const ALLOWED_CATEGORIES = [
+  'Makanan & Minuman', 'Bahan Makanan', 'Transportasi', 'Tempat Tinggal',
+  'Tagihan', 'Kuliah & Tugas', 'Perlengkapan Proyek', 'Alat & Bahan',
+  'Rumah Tangga', 'Perawatan', 'Kesehatan', 'Hiburan', 'Tabungan', 'Lainnya',
+] as const
+
+const ALLOWED_UNITS = [
+  'pcs', 'buah', 'unit', 'porsi', 'butir', 'kg', 'gram', 'liter', 'ml',
+  'botol', 'lembar', 'batang', 'meter', 'tube', 'pack', 'paket', 'roll',
+  'set', 'kali', 'hari', 'bulan', 'perjalanan', 'galon', 'tabung',
+  'bungkus', 'pasang', 'box', 'rim', 'jam',
+] as const
+
+function extractExplicitPrices(description: string) {
+  const prices = new Set<number>()
+  const text = description.toLocaleLowerCase('id')
+
+  for (const match of text.matchAll(/(?:rp\s*)?(\d{1,3}(?:[.,]\d{3})+|\d+(?:[.,]\d+)?)\s*(ribu|rb|juta|jt)\b/g)) {
+    const value = Number(match[1].replace(/[.,]/g, ''))
+    if (!Number.isFinite(value) || value <= 0) continue
+    const multiplier = match[2] === 'juta' || match[2] === 'jt' ? 1_000_000 : 1_000
+    prices.add(Math.round(value * multiplier))
+  }
+
+  for (const match of text.matchAll(/\brp\s*(\d{1,3}(?:[.,]\d{3})+|\d+)\b/g)) {
+    const value = Number(match[1].replace(/[.,]/g, ''))
+    if (Number.isFinite(value) && value > 0) prices.add(Math.round(value))
+  }
+
+  return [...prices]
+}
+
+function containsDailyFrequencyIntent(description: string) {
+  return /\b(per hari|sehari|tiap hari|setiap hari|harian|sehari-hari|perharinya)\b/i.test(description)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -121,22 +160,24 @@ export async function POST(request: Request) {
     const catalog = getRecommendationCatalog()
     const catalogKeys = new Set(Object.keys(ITEMS))
     const system = [
-      'Kamu adalah asisten perencana kebutuhan dan anggaran EstiMate. Pahami bahasa Indonesia sehari-hari, singkatan, typo ringan, konteks dan instruksi lanjutan seperti ChatGPT.',
-      'Tugasmu adalah mengubah instruksi terbaru menjadi perubahan kecil pada daftar kebutuhan, bukan mengeluarkan ulang seluruh daftar.',
-      'ATURAN PALING PENTING: daftar yang sudah ada harus tetap dipertahankan. Jangan menghapus, mengganti, menghilangkan, atau mengabaikan item yang tidak disebut pengguna.',
-      'Gunakan action add untuk barang baru. Jika barang dan satuannya sudah ada, action add berarti menambahkan kuantitas ke item yang sama (bukan menggandakan baris). Gunakan update hanya ketika pengguna meminta mengganti jumlah atau satuan/nilai item yang sudah ada.',
-      'Gunakan action remove hanya jika pengguna dengan jelas meminta barang tertentu dihapus, dibuang, atau tidak diperlukan lagi. Jangan pernah menyimpulkan penghapusan hanya karena barang tidak disebut pada instruksi terbaru.',
-      'Jika pengguna meminta menghapus seluruh daftar dan membuat ulang, gunakan remove satu per satu hanya ketika instruksi benar-benar menyebut reset/kosongkan/hapus semua. Setelah itu tambahkan daftar baru yang diminta.',
-      'Untuk daftar awal yang masih kosong, buat daftar relevan yang cukup lengkap berdasarkan konteks dan template. Jangan menambah barang yang tidak masuk akal atau menghabiskan seluruh budget.',
-      'Prioritaskan katalog yang diberikan. itemKey harus salah satu key katalog atau "custom". Jangan menciptakan itemKey sendiri.',
-      'Untuk item katalog, isi name/category/unit sesuai katalog. Gunakan variant/satuan yang benar saat tersedia (misalnya telur per butir atau per kg). Jika satuan tidak jelas dan memengaruhi harga, minta klarifikasi.',
-      'Untuk barang custom di luar katalog, gunakan itemKey "custom", nama/category/unit yang masuk akal, dan jangan mengarang harga.',
-      'Kuantitas harus angka positif. Jangan mengubah budget pengguna dan jangan mengarang harga, harga pasar, atau harga aktual. Harga akan ditentukan aplikasi dari katalog atau riwayat pembelian pribadi.',
-      'Harga pribadi dan Harga Asli tidak dikirim ke model. Jangan menghitung atau menebak nominal harga.',
-      'Perubahan harus mengarah ke targetItemId yang benar dari daftar saat ini untuk update/remove. Jangan menebak ID atau mengubah item lain.',
-      'Jika instruksi ambigu, tanyakan satu pertanyaan singkat di clarifyingQuestion dan jangan membuat perubahan yang berisiko.',
-      'Balas assistantMessage dengan bahasa Indonesia yang singkat, ramah, dan menyebut perubahan yang dilakukan.',
-    ].join('\n')
+      'Kamu adalah otak perencana kebutuhan dan anggaran EstiMate yang sangat cermat. Pahami Bahasa Indonesia percakapan, typo ringan, angka tidak baku, konteks, cerita panjang, dan instruksi lanjutan.',
+      'Baca seluruh instruksi sebagai satu cerita. Pecah menjadi kebutuhan rutin, kegiatan/proyek khusus, dan perubahan terhadap daftar yang sudah ada.',
+      'DAFTAR LAMA ADALAH SUMBER KEBENARAN. Jangan pernah mengganti daftar penuh. Keluarkan hanya operasi add, update, atau remove yang diperlukan.',
+      'Jika pengguna hanya menambah konteks atau barang baru, gunakan add dan pertahankan semua item yang tidak disebut. Jangan mengubah atau menghapus item lama secara implisit.',
+      'Gunakan update hanya bila pengguna jelas meminta mengubah jumlah, harga, kategori, atau satuan item yang sudah ada; targetItemId wajib tepat.',
+      'Gunakan remove hanya jika pengguna jelas meminta menghapus item tertentu atau mengosongkan daftar. Jangan tafsirkan kalimat negatif seperti "jangan dihapus" sebagai izin hapus.',
+      'Untuk kebutuhan rutin, hitung jumlah unit secara eksplisit. Contoh: makan 3 kali sehari selama 30 hari = 90 porsi; bila harga yang disebut pengguna Rp25.000/porsi, maka harga satuan adalah 25000 dan jumlah 90. Isi dailyFrequency=3, periodDays=30, quantity=90.',
+      'Jika rencana bulanan dan pengguna menyebut setiap hari/sehari tanpa durasi lain, gunakan 30 hari. Untuk rencana harian gunakan 1 hari. Jangan menambahkan frekuensi jika tidak ada petunjuk pengulangan.',
+      'userProvidedUnitPrice hanya boleh diisi jika nominal harga per unit benar-benar disebutkan di pesan pengguna. Jangan mengarang harga untuk bahan proyek. Jika tidak ada harga eksplisit, isi null; aplikasi memakai katalog untuk item katalog dan 0 untuk item custom.',
+      'Jangan salah mengalikan: dailyFrequency × periodDays = quantity; harga satuan × quantity = total. Jangan memasukkan total anggaran sebagai harga satuan.',
+      'Untuk proyek/DIY/tugas fisik, pecah menjadi material dan perlengkapan terpisah. Misalnya proyek kursi dapat mencakup kayu, lem kayu, sekrup/paku, amplas dan finishing bila relevan. Jangan memberi harga yang tidak disebutkan. Bila ukuran/dimensi tidak diketahui, gunakan jumlah awal konservatif dan jelaskan bahwa kuantitas perlu disesuaikan ukuran/desain.',
+      'Gunakan kategori dari pilihan berikut: ' + ALLOWED_CATEGORIES.join(', ') + '. Gunakan satuan dari pilihan berikut: ' + ALLOWED_UNITS.join(', ') + '. Pilih kategori dan satuan yang paling tepat; jangan meminta pengguna mengetik kategori/satuan.',
+      'Prioritaskan itemKey katalog jika benar-benar cocok; selain itu gunakan itemKey "custom". Jangan memaksakan item ke kategori katalog yang tidak sesuai.',
+      'Untuk item katalog, nama, kategori dan satuan harus sesuai katalog. Untuk item custom, kategori dan satuan harus dipilih dari pilihan yang tersedia.',
+      'Jangan mengubah batas budget pengguna. Jangan mengarang harga pasar, harga aktual, atau riwayat pembelian. Harga pribadi dan Harga Asli tidak dikirim ke model.',
+      'Jika ukuran, periode, satuan, atau detail penting tidak cukup jelas untuk perhitungan yang bisa dipercaya, ajukan satu pertanyaan klarifikasi. Namun tetap buat item lain yang sudah jelas.',
+      'Balas assistantMessage dengan Bahasa Indonesia yang ramah, ringkas, dan jelaskan perhitungan, asumsi, serta hal yang perlu dikonfirmasi.',
+    ].join(\'\\n\')
 
     const prompt = [
       'Periode rencana: ' + (period === 'daily' ? 'harian' : 'bulanan'),
@@ -144,6 +185,8 @@ export async function POST(request: Request) {
       'Batas budget (panduan, tidak wajib dihabiskan): ' + (budgetLimit ? `Rp ${budgetLimit.toLocaleString('id-ID')}` : 'belum ditentukan'),
       'Daftar yang sedang ada (sumber kebenaran, jangan hilangkan item yang tidak disebut):',
       JSON.stringify(normalizedItems),
+      'Kategori yang diperbolehkan: ' + JSON.stringify(ALLOWED_CATEGORIES),
+      'Satuan yang diperbolehkan: ' + JSON.stringify(ALLOWED_UNITS),
       'Katalog item resmi (hanya gunakan key di sini):',
       JSON.stringify(catalog),
       'Instruksi terbaru pengguna:',
@@ -160,7 +203,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: MODEL,
         temperature: 0.1,
-        max_tokens: 1800,
+        max_tokens: 3600,
         response_format: {
           type: 'json_schema',
           json_schema: {
@@ -219,12 +262,31 @@ export async function POST(request: Request) {
       const name = typeof value.name === 'string' ? value.name.trim().slice(0, 100) : ''
       const category = typeof value.category === 'string' ? value.category.trim().slice(0, 80) : ''
       const unit = typeof value.unit === 'string' ? value.unit.trim().slice(0, 40) : ''
-      const quantity = Number(value.quantity)
+      const rawQuantity = Number(value.quantity)
+      const explicitPrices = extractExplicitPrices(description)
+      const modelPrice = value.userProvidedUnitPrice == null ? null : Number(value.userProvidedUnitPrice)
+      const userProvidedUnitPrice = modelPrice != null && explicitPrices.includes(Math.round(modelPrice))
+        ? Math.round(modelPrice)
+        : null
+      const dailyFrequency = Number.isInteger(Number(value.dailyFrequency)) && Number(value.dailyFrequency) >= 1
+        ? Math.min(24, Number(value.dailyFrequency))
+        : null
+      const modelPeriodDays = Number.isInteger(Number(value.periodDays)) && Number(value.periodDays) >= 1
+        ? Math.min(366, Number(value.periodDays))
+        : null
+      const periodDays = dailyFrequency && containsDailyFrequencyIntent(description)
+        ? (modelPeriodDays ?? (period === 'monthly' ? 30 : 1))
+        : null
+      const quantity = dailyFrequency && periodDays
+        ? Math.min(10000, dailyFrequency * periodDays)
+        : rawQuantity
       const priority = value.priority === 'optional' ? 'optional' : value.priority === 'essential' ? 'essential' : null
 
       if (!['add', 'update', 'remove'].includes(String(action))
         || !Number.isInteger(quantity) || quantity < 1 || quantity > 10000
         || !priority) return []
+      if (!ALLOWED_CATEGORIES.includes(category as typeof ALLOWED_CATEGORIES[number])
+        || !ALLOWED_UNITS.includes(unit as typeof ALLOWED_UNITS[number])) return []
 
       if (action === 'remove') {
         if (!canRemove || !targetItemId || !existingIds.has(targetItemId)) return []
@@ -235,7 +297,12 @@ export async function POST(request: Request) {
       }
 
       if (!name || !category || !unit) return []
-      return [{ action, itemKey, targetItemId, name, category, unit, quantity, priority }]
+      return [{
+        action, itemKey, targetItemId, name, category, unit, quantity, priority,
+        userProvidedUnitPrice,
+        dailyFrequency,
+        periodDays,
+      }]
     })
 
     if (!changes.length && !parsed.clarifyingQuestion) {
