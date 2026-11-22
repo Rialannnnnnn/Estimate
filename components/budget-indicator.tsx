@@ -63,7 +63,7 @@ export function BudgetIndicator({
         aria-valuenow={Math.round(percentage)}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label="Penggunaan budget"
+        aria-label="Proyeksi penggunaan anggaran"
       >
         <div
           className={cn('h-full rounded-full transition-all duration-300', fillBg)}
@@ -73,7 +73,7 @@ export function BudgetIndicator({
 
       <div className={cn('grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 min-[400px]:gap-4', strongText)}>
         <div className="flex items-baseline justify-between gap-2 min-[400px]:block">
-          <span className={cn('text-label', labelText)}>Total</span>
+          <span className={cn('text-label', labelText)}>Proyeksi akhir</span>
           <div className="font-mono font-bold text-base sm:text-lg min-[400px]:mt-1 break-words">
             {formatCurrency(currentTotal)}
           </div>
