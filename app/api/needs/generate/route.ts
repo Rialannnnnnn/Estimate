@@ -206,7 +206,12 @@ export async function POST(request: Request) {
       return [{ role: entry.role, content: entry.content.slice(0, 1600) }]
     })
 
-    const apiKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN
+    // Vercel Functions expose the runtime OIDC token on the incoming Request header.
+    // Keep AI_GATEWAY_API_KEY for local development and external environments.
+    const apiKey =
+      process.env.AI_GATEWAY_API_KEY
+      || request.headers.get('x-vercel-oidc-token')
+      || process.env.VERCEL_OIDC_TOKEN
     if (!apiKey) {
       return NextResponse.json({
         error: 'Koneksi AI Gateway belum tersedia. Pastikan Vercel OIDC aktif atau AI_GATEWAY_API_KEY sudah diatur.',
