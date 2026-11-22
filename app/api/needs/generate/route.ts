@@ -289,8 +289,32 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       const errorText = (await response.text()).slice(0, 1000)
+      let gatewayFailure: unknown = null
+      try {
+        gatewayFailure = JSON.parse(errorText)
+      } catch {
+        gatewayFailure = null
+      }
+      const gatewayError = isRecord(gatewayFailure) && isRecord(gatewayFailure.error)
+        ? gatewayFailure.error
+        : null
+      const failureType = gatewayError && typeof gatewayError.type === 'string'
+        ? gatewayError.type
+        : null
+
       console.error('AI Gateway request failed:', response.status, errorText)
-      return NextResponse.json({ error: 'AI EstiMate sedang tidak bisa digunakan. Daftar kamu belum diubah, coba lagi sebentar.' }, { status: 502 })
+
+      if (response.status === 403 && failureType === 'customer_verification_required') {
+        return NextResponse.json({
+          code: 'gateway_verification_required',
+          error: 'Akun/tim Vercel perlu menyelesaikan verifikasi metode pembayaran agar AI EstiMate bisa digunakan. Daftar kamu tetap aman dan belum diubah.',
+          setupUrl: 'https://vercel.com/d?to=%2F%5Bteam%5D%2F~%2Fai%3Fmodal%3Dadd-credit-card',
+        }, { status: 403 })
+      }
+
+      return NextResponse.json({
+        error: 'AI Gateway menolak permintaan (HTTP ' + response.status + '). Daftar kamu tetap aman dan belum diubah.',
+      }, { status: 502 })
     }
 
     const payload: unknown = await response.json()
