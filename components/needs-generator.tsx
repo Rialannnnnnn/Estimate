@@ -97,6 +97,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
   const [isGenerating, setIsGenerating] = useState(false)
   const [priceHistoryNotice, setPriceHistoryNotice] = useState('')
   const [assistantMessage, setAssistantMessage] = useState('')
+  const [assistantActionUrl, setAssistantActionUrl] = useState('')
   const [conversation, setConversation] = useState<ConversationTurn[]>([])
   const supabase = createClient()
 
@@ -143,6 +144,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
     setIsGenerating(true)
     setPriceHistoryNotice('Memeriksa riwayat pembelian pribadi...')
     setAssistantMessage('')
+    setAssistantActionUrl('')
 
     try {
       const now = new Date()
@@ -199,6 +201,11 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
 
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) {
+        if (payload.code === 'gateway_verification_required') {
+          setAssistantMessage(typeof payload.error === 'string' ? payload.error : 'Akun/tim Vercel perlu menyelesaikan verifikasi metode pembayaran.')
+          setAssistantActionUrl(typeof payload.setupUrl === 'string' ? payload.setupUrl : '')
+          return
+        }
         throw new Error(typeof payload.error === 'string' ? payload.error : 'AI EstiMate tidak dapat memproses instruksi.')
       }
 
@@ -256,7 +263,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
       )}
       <Textarea value={criteria} onChange={(event) => setCriteria(event.target.value)} aria-label="Instruksi untuk AI EstiMate" placeholder="Ceritakan semua rencanamu di sini. Contoh: aku makan 3 kali sehari, sekali makan Rp25 ribu. Aku juga mau bikin kursi, apa saja bahannya? Lalu tambahkan telur 2 kg." className="min-h-28 rounded-2xl border border-border bg-background p-4 text-sm leading-relaxed" />
       <div className="mt-4 flex flex-wrap gap-3"><Button onClick={() => void runGenerate()} disabled={isGenerating || !criteria.trim()} className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"><Send className="mr-2 h-4 w-4" /> {isGenerating ? 'AI sedang memahami...' : 'Kirim ke AI EstiMate'}</Button><Button variant="ghost" onClick={onBack} className="rounded-full">Kembali ubah rencana</Button></div>
-      {assistantMessage && <div className="mt-4 rounded-2xl border border-border bg-secondary px-4 py-3 text-sm leading-relaxed" role="status"><span className="mb-1 block text-xs font-semibold text-primary">AI ESTIMATE</span>{assistantMessage}</div>}
+      {assistantMessage && <div className="mt-4 rounded-2xl border border-border bg-secondary px-4 py-3 text-sm leading-relaxed" role="status"><span className="mb-1 block text-xs font-semibold text-primary">AI ESTIMATE</span>{assistantMessage}{assistantActionUrl && <a href={assistantActionUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90">Buka pengaturan AI Gateway <span aria-hidden="true" className="ml-2">↗</span></a>}</div>}
 
       {priceHistoryNotice && <p className="mt-3 rounded-xl border border-border bg-secondary px-3 py-2 text-xs leading-relaxed text-muted-foreground" role="status">{priceHistoryNotice}</p>}
 
