@@ -23,10 +23,13 @@ const responseSchema = {
           quantity: { type: 'integer' },
           priority: { type: 'string', enum: ['essential', 'optional'] },
           userProvidedUnitPrice: { type: 'number' },
+          estimatedUnitPrice: { type: 'number' },
+          estimatedPriceMin: { type: 'number' },
+          estimatedPriceMax: { type: 'number' },
           dailyFrequency: { type: 'integer' },
           periodDays: { type: 'integer' },
         },
-        required: ['action', 'itemKey', 'targetItemId', 'name', 'category', 'unit', 'quantity', 'priority', 'userProvidedUnitPrice', 'dailyFrequency', 'periodDays'],
+        required: ['action', 'itemKey', 'targetItemId', 'name', 'category', 'unit', 'quantity', 'priority', 'userProvidedUnitPrice', 'estimatedUnitPrice', 'estimatedPriceMin', 'estimatedPriceMax', 'dailyFrequency', 'periodDays'],
       },
     },
   },
@@ -229,14 +232,19 @@ export async function POST(request: Request) {
       'Untuk kebutuhan rutin, hitung jumlah unit secara eksplisit. Contoh: makan 3 kali sehari selama 30 hari = 90 porsi; bila harga yang disebut pengguna Rp25.000/porsi, maka harga satuan adalah 25000 dan jumlah 90. Isi dailyFrequency=3, periodDays=30, quantity=90.',
       'Jika kebutuhan makan disebut harga per porsi/per kali, gunakan item custom bernama Makan, kategori Makanan & Minuman, satuan porsi. Jangan memilih item katalog Makan Harian yang satuannya hari, karena harga per porsi harus dikalikan jumlah porsi.',
       'Jika rencana bulanan dan pengguna menyebut setiap hari/sehari tanpa durasi lain, gunakan 30 hari. Untuk rencana harian gunakan 1 hari. Jangan menambahkan frekuensi jika tidak ada petunjuk pengulangan.',
-      'userProvidedUnitPrice hanya boleh diisi jika nominal harga per unit benar-benar disebutkan di pesan pengguna. Jangan mengarang harga untuk bahan proyek. Jika tidak ada harga eksplisit, isi null; aplikasi memakai katalog untuk item katalog dan 0 untuk item custom.',
+      'userProvidedUnitPrice hanya boleh diisi jika nominal harga per unit benar-benar disebutkan pengguna. Jangan pernah menyamakan total belanja dengan harga satuan.',
+      'Untuk SETIAP item baru dengan action add yang tidak memiliki harga eksplisit dari pengguna, WAJIB berikan estimasi harga rata-rata per unit dalam Rupiah Indonesia pada estimatedUnitPrice, estimatedPriceMin, dan estimatedPriceMax. Berlaku untuk semua jenis barang, alat, bahan proyek, jasa, biaya, transportasi, makanan, barang katalog, maupun barang custom; jangan hanya mengisi item yang ada di katalog.',
+      'Estimasi adalah kisaran harga eceran umum di Indonesia untuk kualitas standar dan satuan yang dipilih. Gunakan perkiraan wajar dari pengetahuan umum, bukan klaim harga real-time atau hasil pencarian toko. estimatedUnitPrice adalah nilai tengah/rata-rata yang paling masuk akal, dibulatkan ke nominal praktis; estimatedPriceMin dan estimatedPriceMax adalah batas kisaran wajarnya. Semua angka adalah harga SATUAN, bukan total quantity.',
+      'Pertimbangkan konteks barang, ukuran, mutu standar, kategori, dan satuan. Contoh gunting satuan pcs berarti harga satu gunting; kayu satuan batang berarti harga satu batang; makan satuan porsi berarti harga satu porsi. Jangan memakai harga per kg untuk item yang satuannya pcs.',
+      'Bila detail merek/ukuran belum diketahui, gunakan mutu standar yang umum dan jelaskan asumsi singkatnya di assistantMessage. Untuk item yang sangat bervariasi, tetap berikan perkiraan tengah beserta rentang yang lebih lebar. Jangan mengosongkan harga custom hanya karena tidak ada di katalog.',
+      'Jika pengguna menyebut harga secara eksplisit, isi userProvidedUnitPrice dan isi estimatedUnitPrice, estimatedPriceMin, estimatedPriceMax dengan 0; harga pengguna akan dipakai apa adanya.',
       'Jangan salah mengalikan: dailyFrequency × periodDays = quantity; harga satuan × quantity = total. Jangan memasukkan total anggaran sebagai harga satuan.',
       'Untuk proyek/DIY/tugas fisik, pecah menjadi material dan perlengkapan terpisah. Misalnya proyek kursi dapat mencakup kayu, lem kayu, sekrup/paku, amplas dan finishing bila relevan. Jangan memberi harga yang tidak disebutkan. Bila ukuran/dimensi tidak diketahui, gunakan jumlah awal konservatif dan jelaskan bahwa kuantitas perlu disesuaikan ukuran/desain.',
       'Gunakan kategori dari pilihan berikut: ' + ALLOWED_CATEGORIES.join(', ') + '. Gunakan satuan dari pilihan berikut: ' + ALLOWED_UNITS.join(', ') + '. Pilih kategori dan satuan yang paling tepat; jangan meminta pengguna mengetik kategori/satuan.',
       'Prioritaskan itemKey katalog jika benar-benar cocok; selain itu gunakan itemKey "custom". Jangan memaksakan item ke kategori katalog yang tidak sesuai.',
       'Untuk item katalog, nama, kategori dan satuan harus sesuai katalog. Untuk item custom, kategori dan satuan harus dipilih dari pilihan yang tersedia.',
-      'Agar JSON valid: field targetItemId isi string kosong "" untuk item baru; untuk update/remove isi ID target yang persis. Field userProvidedUnitPrice isi 0 bila pengguna tidak menyebut harga; dailyFrequency dan periodDays isi 0 bila bukan kebutuhan berulang; clarifyingQuestion isi string kosong bila tidak perlu bertanya.',
-      'Jangan mengubah batas budget pengguna. Jangan mengarang harga pasar, harga aktual, atau riwayat pembelian. Harga pribadi dan Harga Asli tidak dikirim ke model.',
+      'Agar JSON valid: field targetItemId isi string kosong "" untuk item baru; untuk update/remove isi ID target yang persis. Field userProvidedUnitPrice isi 0 bila pengguna tidak menyebut harga. Untuk item add tanpa harga eksplisit, estimatedUnitPrice, estimatedPriceMin, dan estimatedPriceMax wajib berisi angka Rupiah per satuan yang lebih besar dari 0. Untuk harga eksplisit atau action selain add, isi ketiganya 0. dailyFrequency dan periodDays isi 0 bila bukan kebutuhan berulang; clarifyingQuestion isi string kosong bila tidak perlu bertanya.',
+      'Jangan mengubah batas budget pengguna. Jangan menyatakan estimasi AI sebagai harga aktual, harga toko real-time, atau data hasil survei. Harga pribadi dan Harga Asli tidak dikirim ke model.',
       'Jika ukuran, periode, satuan, atau detail penting tidak cukup jelas untuk perhitungan yang bisa dipercaya, ajukan satu pertanyaan klarifikasi. Namun tetap buat item lain yang sudah jelas.',
       'Balas assistantMessage dengan Bahasa Indonesia yang ramah, ringkas, dan jelaskan perhitungan, asumsi, serta hal yang perlu dikonfirmasi.',
     ].join('\n')
@@ -378,6 +386,19 @@ export async function POST(request: Request) {
       const userProvidedUnitPrice = modelPrice > 0 && explicitPrices.includes(Math.round(modelPrice))
         ? Math.round(modelPrice)
         : null
+      const rawEstimatedUnitPrice = Number(value.estimatedUnitPrice)
+      const estimatedUnitPrice = action === 'add' && userProvidedUnitPrice == null
+        && Number.isFinite(rawEstimatedUnitPrice) && rawEstimatedUnitPrice > 0 && rawEstimatedUnitPrice <= 1_000_000_000
+        ? Math.round(rawEstimatedUnitPrice)
+        : null
+      const rawEstimatedPriceMin = Number(value.estimatedPriceMin)
+      const rawEstimatedPriceMax = Number(value.estimatedPriceMax)
+      const estimatedPriceMin = estimatedUnitPrice && Number.isFinite(rawEstimatedPriceMin) && rawEstimatedPriceMin > 0
+        ? Math.min(estimatedUnitPrice, Math.round(rawEstimatedPriceMin))
+        : null
+      const estimatedPriceMax = estimatedUnitPrice && Number.isFinite(rawEstimatedPriceMax) && rawEstimatedPriceMax > 0 && rawEstimatedPriceMax <= 1_000_000_000
+        ? Math.max(estimatedUnitPrice, Math.round(rawEstimatedPriceMax))
+        : null
       const dailyFrequency = Number.isInteger(Number(value.dailyFrequency)) && Number(value.dailyFrequency) >= 1
         ? Math.min(24, Number(value.dailyFrequency))
         : null
@@ -407,6 +428,9 @@ export async function POST(request: Request) {
       return [{
         action, itemKey, targetItemId, name, category, unit, quantity, priority,
         userProvidedUnitPrice,
+        estimatedUnitPrice,
+        estimatedPriceMin,
+        estimatedPriceMax,
         dailyFrequency,
         periodDays,
       }]
