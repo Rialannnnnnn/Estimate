@@ -24,7 +24,7 @@ type Props = {
 type ReviewItem = Material & {
   priority?: Priority
   reason?: string
-  priceSource?: 'personal-history' | 'catalogue'
+  priceSource?: 'personal-history' | 'catalogue' | 'manual'
   priceSampleCount?: number
   priceRangeMinimum?: number
   priceRangeMaximum?: number
@@ -45,8 +45,21 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
   const analysis = useMemo(() => analyzeBudget(items, budget), [items, budget])
   const total = analysis.total
 
-  const update = (index: number, patch: Partial<ReviewItem>) => setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item))
-  const addItem = () => setItems((current) => [...current, { id: `custom-${Date.now()}`, name: 'Kebutuhan baru', category: 'Lainnya · unit', quantity: 1, unitPrice: 0, actualPrice: null, isPurchased: false, priority: 'essential', reason: 'ditambahkan manual' }])
+  const update = (index: number, patch: Partial<ReviewItem>) => setItems((current) => current.map((item, itemIndex) => {
+    if (itemIndex !== index) return item
+    const overridesPriceBasis = patch.name !== undefined || patch.category !== undefined || patch.unitPrice !== undefined
+    return {
+      ...item,
+      ...patch,
+      ...(overridesPriceBasis ? {
+        priceSource: 'manual' as const,
+        priceSampleCount: 0,
+        priceRangeMinimum: undefined,
+        priceRangeMaximum: undefined,
+      } : {}),
+    }
+  }))
+  const addItem = () => setItems((current) => [...current, { id: `custom-${Date.now()}`, name: 'Kebutuhan baru', category: 'Lainnya · unit', quantity: 1, unitPrice: 0, actualPrice: null, isPurchased: false, priority: 'essential', reason: 'ditambahkan manual', priceSource: 'manual', priceSampleCount: 0 }])
   const applySuggestion = (id: string, kind: 'remove' | 'reduce', newQuantity?: number) => {
     setItems((current) => kind === 'remove'
       ? current.filter((item) => (item.id ?? item.name) !== id)
@@ -140,7 +153,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
 
       {items.length > 0 && <div className="mt-8 border-t border-border/70 pt-7">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><h3 className="font-semibold">Review item belanja</h3><p className="text-sm text-muted-foreground">Harga adalah estimasi per satuan. Kamu masih bisa mengubah semuanya.</p></div><p className="font-mono text-sm text-primary">Total estimasi {rupiah(total)}</p></div>
-        <p className="mb-4 flex items-start gap-2 rounded-2xl bg-secondary px-4 py-3 text-xs leading-relaxed text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" /><span>Rekomendasi dibuat dengan aturan kata kunci, bukan AI. Nominal harga adalah estimasi umum, bukan harga pasar real-time atau harga baku. Sesuaikan dengan lokasi, satuan, dan waktu belanjamu.</span></p>
+        <p className="mb-4 flex items-start gap-2 rounded-2xl bg-secondary px-4 py-3 text-xs leading-relaxed text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" /><span>Daftar kebutuhan disusun dari konteks dan katalog. Harga pribadi hanya dipakai jika tersedia minimal 3 pembelian dengan nama, kategori, dan satuan yang sama dalam 12 bulan terakhir. Selain itu, harga tetap memakai katalog estimasi—bukan harga pasar real-time.</span></p>
         <div className="space-y-3">{items.map((item, index) => {
           const isOptional = item.priority === 'optional'
           return (
@@ -151,7 +164,9 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
                 <span className="font-mono">{item.quantity} × {rupiah(item.unitPrice || 0)}</span>
                 {item.priceSource === 'personal-history' && item.priceRangeMinimum != null && item.priceRangeMaximum != null
                   ? <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-primary">Riwayat pribadi · {item.priceSampleCount} catatan · rentang {rupiah(item.priceRangeMinimum)}–{rupiah(item.priceRangeMaximum)}</span>
-                  : <span className="rounded-full border border-border px-2 py-0.5">Katalog estimasi</span>}
+                  : item.priceSource === 'manual'
+                    ? <span className="rounded-full border border-border px-2 py-0.5">Diubah manual</span>
+                    : <span className="rounded-full border border-border px-2 py-0.5">Katalog estimasi</span>}
                 {item.reason && <span>· {item.reason}</span>}
               </div>
             </div>
