@@ -60,8 +60,8 @@ function isExplicitBulkReset(description: string) {
 }
 
 function mayUpdateItems(description: string) {
-  if (/\\b(jangan|tanpa|tidak|nggak|gak|ga)\\b.{0,24}\\b(ubah|ganti|kurangi|naikkan|turunkan|perbarui|revisi|sesuaikan)\\b/i.test(description)) return false
-  return /\\b(ubah|ganti|jadikan|kurangi|naikkan|turunkan|perbarui|revisi|sesuaikan|cukup|menjadi)\\b|\\bjadi\\s+\\d+/i.test(description)
+  if (/\b(jangan|tanpa|tidak|nggak|gak|ga)\b.{0,24}\b(ubah|ganti|kurangi|naikkan|turunkan|perbarui|revisi|sesuaikan)\b/i.test(description)) return false
+  return /\b(ubah|ganti|jadikan|kurangi|naikkan|turunkan|perbarui|revisi|sesuaikan|cukup|menjadi)\b|\bjadi\s+\d+/i.test(description)
 }
 
 export async function POST(request: Request) {
