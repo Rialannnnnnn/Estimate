@@ -5,6 +5,7 @@ export interface Material {
   quantity: number
   unitPrice: number
   actualPrice?: number | null
+  actualPriceRecordedAt?: string | null
   isPurchased?: boolean
 }
 
