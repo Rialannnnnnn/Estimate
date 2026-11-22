@@ -295,12 +295,30 @@ export const BUNDLES: Bundle[] = [
   { context: 'tabungan', keywords: ['dana darurat', 'darurat', 'cadangan'], items: ['dana-darurat'] },
 ]
 
+export type PriceObservation = {
+  name: string
+  category: string | null
+  actualPrice: number
+  recordedAt: string
+}
+
+export type PersonalPriceEstimate = {
+  median: number
+  minimum: number
+  maximum: number
+  sampleCount: number
+}
+
 export type Recommendation = Material & {
   id: string
   itemKey: string
   unit: string
   priority: Priority
   reason: string
+  priceSource: 'personal-history' | 'catalogue'
+  priceSampleCount: number
+  priceRangeMinimum?: number
+  priceRangeMaximum?: number
 }
 
 export type DetectedContext = { id: ContextId; label: string; source: 'template' | 'deskripsi' }
@@ -309,6 +327,51 @@ export type RecommendationInput = {
   description: string
   period: Period
   templateType?: TemplateType | null
+  priceHistory?: PriceObservation[]
+  now?: number
+}
+
+/**
+ * Use only this user's recent purchases for the exact same item and category/unit.
+ * Three or more observations are required; older or ambiguous records are ignored.
+ */
+export function estimatePersonalUnitPrice(
+  name: string,
+  category: string,
+  observations: PriceObservation[],
+  now = Date.now(),
+): PersonalPriceEstimate | null {
+  const targetName = normalizeText(name).trim()
+  const targetCategory = normalizeText(category).trim()
+  const cutoff = now - 365 * 24 * 60 * 60 * 1000
+
+  const prices = observations
+    .filter((observation) => {
+      const recordedAt = Date.parse(observation.recordedAt)
+      return normalizeText(observation.name).trim() === targetName
+        && normalizeText(observation.category ?? '').trim() === targetCategory
+        && Number.isFinite(recordedAt)
+        && recordedAt >= cutoff
+        && recordedAt <= now
+        && Number.isFinite(observation.actualPrice)
+        && observation.actualPrice > 0
+    })
+    .map((observation) => Math.round(observation.actualPrice))
+    .sort((a, b) => a - b)
+
+  if (prices.length < 3) return null
+
+  const middle = Math.floor(prices.length / 2)
+  const median = prices.length % 2 === 0
+    ? Math.round((prices[middle - 1] + prices[middle]) / 2)
+    : prices[middle]
+
+  return {
+    median,
+    minimum: prices[0],
+    maximum: prices[prices.length - 1],
+    sampleCount: prices.length,
+  }
 }
 
 export type RecommendationResult = {
@@ -347,7 +410,7 @@ function contextsForTemplate(templateType?: TemplateType | null) {
   return (Object.keys(CONTEXTS) as ContextId[]).filter((id) => CONTEXTS[id].templates.includes(templateType))
 }
 
-export function generateRecommendations({ description, period, templateType }: RecommendationInput): RecommendationResult {
+export function generateRecommendations({ description, period, templateType, priceHistory = [], now = Date.now() }: RecommendationInput): RecommendationResult {
   const text = normalizeText(description)
   const matchedKeywords = new Set<string>()
   const textContexts = new Set<ContextId>()
@@ -421,7 +484,10 @@ export function generateRecommendations({ description, period, templateType }: R
     const baseQty = period === 'daily' ? (variant ? variant.daily : def.daily) : variant ? variant.monthly : def.monthly
     if (baseQty === null) continue
 
-    const unitPrice = period === 'daily' && !variant && def.dailyUnitPrice ? def.dailyUnitPrice : variant?.unitPrice ?? def.unitPrice
+    const cataloguePrice = period === 'daily' && !variant && def.dailyUnitPrice ? def.dailyUnitPrice : variant?.unitPrice ?? def.unitPrice
+    const category = `${def.category} · ${unit}`
+    const personalPrice = estimatePersonalUnitPrice(def.name, category, priceHistory, now)
+    const unitPrice = personalPrice?.median ?? cataloguePrice
     const aliases = [...new Set([unit, ...(variant?.unitAliases ?? def.unitAliases ?? [])])]
     const statedQty = (keywordsByItem.get(key) ?? []).map((kw) => extractQuantity(text, kw, aliases)).find((qty) => qty !== null) ?? null
     const quantity = statedQty ?? baseQty
@@ -430,7 +496,20 @@ export function generateRecommendations({ description, period, templateType }: R
       id: `rec-${stamp}-${items.length}`,
       itemKey: key,
       name: def.name,
-      category: `${def.category} · ${unit}`,
+      category,
+      unit,
+      quantity,
+      unitPrice,
+      actualPrice: null,
+      isPurchased: false,
+      priority: def.priority,
+      priceSource: personalPrice ? 'personal-history' : 'catalogue',
+      priceSampleCount: personalPrice?.sampleCount ?? 0,
+      ...(personalPrice ? {
+        priceRangeMinimum: personalPrice.minimum,
+        priceRangeMaximum: personalPrice.maximum,
+      } : {}),
+      reason:
       unit,
       quantity,
       unitPrice,
