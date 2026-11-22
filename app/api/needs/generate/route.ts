@@ -184,6 +184,7 @@ export async function POST(request: Request) {
       'Gunakan update hanya bila pengguna jelas meminta mengubah jumlah, harga, kategori, atau satuan item yang sudah ada; targetItemId wajib tepat.',
       'Gunakan remove hanya jika pengguna jelas meminta menghapus item tertentu atau mengosongkan daftar. Jangan tafsirkan kalimat negatif seperti "jangan dihapus" sebagai izin hapus.',
       'Untuk kebutuhan rutin, hitung jumlah unit secara eksplisit. Contoh: makan 3 kali sehari selama 30 hari = 90 porsi; bila harga yang disebut pengguna Rp25.000/porsi, maka harga satuan adalah 25000 dan jumlah 90. Isi dailyFrequency=3, periodDays=30, quantity=90.',
+      'Jika kebutuhan makan disebut harga per porsi/per kali, gunakan item custom bernama Makan, kategori Makanan & Minuman, satuan porsi. Jangan memilih item katalog Makan Harian yang satuannya hari, karena harga per porsi harus dikalikan jumlah porsi.',
       'Jika rencana bulanan dan pengguna menyebut setiap hari/sehari tanpa durasi lain, gunakan 30 hari. Untuk rencana harian gunakan 1 hari. Jangan menambahkan frekuensi jika tidak ada petunjuk pengulangan.',
       'userProvidedUnitPrice hanya boleh diisi jika nominal harga per unit benar-benar disebutkan di pesan pengguna. Jangan mengarang harga untuk bahan proyek. Jika tidak ada harga eksplisit, isi null; aplikasi memakai katalog untuk item katalog dan 0 untuk item custom.',
       'Jangan salah mengalikan: dailyFrequency × periodDays = quantity; harga satuan × quantity = total. Jangan memasukkan total anggaran sebagai harga satuan.',
@@ -220,6 +221,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: MODEL,
         temperature: 0.1,
+        reasoning_effort: 'high',
         max_tokens: 3600,
         response_format: {
           type: 'json_schema',
