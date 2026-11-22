@@ -16,6 +16,9 @@ export type NeedsGenerationChange = {
   unit: string
   quantity: number
   priority: Priority
+  userProvidedUnitPrice?: number | null
+  dailyFrequency?: number | null
+  periodDays?: number | null
 }
 
 export type MergeableNeedsItem = Material & {
@@ -27,6 +30,8 @@ export type MergeableNeedsItem = Material & {
   priceSampleCount?: number
   priceRangeMinimum?: number
   priceRangeMaximum?: number
+  dailyFrequency?: number
+  periodDays?: number
 }
 
 export type ApplyNeedsChangesOptions = {
@@ -36,6 +41,16 @@ export type ApplyNeedsChangesOptions = {
 }
 
 const normalize = (value: string) => value.toLocaleLowerCase('id').replace(/\s+/g, ' ').trim()
+const knownUnits = new Set(['pcs', 'buah', 'unit', 'porsi', 'butir', 'kg', 'gram', 'gr', 'liter', 'ml', 'botol', 'lembar', 'batang', 'meter', 'cm', 'm²', 'm2', 'tube', 'pack', 'paket', 'roll', 'set', 'kali', 'hari', 'bulan', 'perjalanan', 'galon', 'tabung', 'bungkus', 'kaleng', 'pasang', 'box', 'rim', 'jam'])
+
+function categoryParts(category: string, fallbackUnit = 'pcs') {
+  const parts = category.split(' · ')
+  const possibleUnit = normalize(parts[parts.length - 1])
+  if (parts.length > 1 && knownUnits.has(possibleUnit)) {
+    return { category: parts.slice(0, -1).join(' · '), unit: possibleUnit }
+  }
+  return { category, unit: fallbackUnit }
+}
 
 function inferItemKey(item: MergeableNeedsItem) {
   if (item.itemKey && ITEMS[item.itemKey]) return item.itemKey
@@ -46,25 +61,35 @@ function inferItemKey(item: MergeableNeedsItem) {
 function sameIdentity(a: MergeableNeedsItem, b: MergeableNeedsItem) {
   const aKey = inferItemKey(a)
   const bKey = inferItemKey(b)
-  if (aKey && bKey) {
-    return aKey === bKey && normalize(a.category) === normalize(b.category)
-  }
-  return normalize(a.name) === normalize(b.name) && normalize(a.category) === normalize(b.category)
+  const aUnit = categoryParts(a.category, aKey ? ITEMS[aKey].unit : 'pcs').unit
+  const bUnit = categoryParts(b.category, bKey ? ITEMS[bKey].unit : 'pcs').unit
+  const sameUnit = aUnit === bUnit
+
+  if (aKey && bKey) return aKey === bKey && sameUnit
+  const aCategory = categoryParts(a.category, aUnit).category
+  const bCategory = categoryParts(b.category, bUnit).category
+  return normalize(a.name) === normalize(b.name)
+    && normalize(aCategory) === normalize(bCategory)
+    && sameUnit
 }
 
 function createCustomItem(change: NeedsGenerationChange, now: number): MergeableNeedsItem {
   return {
     id: `custom-${now}-${Math.random().toString(36).slice(2, 8)}`,
     name: change.name,
-    category: change.category,
+    category: `${change.category} · ${change.unit}`,
     quantity: Math.max(1, Math.min(10000, Math.floor(change.quantity))),
-    unitPrice: 0,
+    unitPrice: change.userProvidedUnitPrice ?? 0,
     actualPrice: null,
     isPurchased: false,
     priority: change.priority,
     reason: 'ditambahkan berdasarkan instruksi',
-    priceSource: 'manual',
+    priceSource: change.userProvidedUnitPrice != null ? 'manual' : 'manual',
     priceSampleCount: 0,
+    ...(change.dailyFrequency && change.periodDays ? {
+      dailyFrequency: change.dailyFrequency,
+      periodDays: change.periodDays,
+    } : {}),
   }
 }
 
@@ -125,6 +150,17 @@ export function applyNeedsChanges(
           actualPrice: unitChanged ? null : current.actualPrice ?? null,
           isPurchased: unitChanged ? false : current.isPurchased ?? false,
           priority: change.priority,
+          ...(change.userProvidedUnitPrice != null ? {
+            unitPrice: change.userProvidedUnitPrice,
+            priceSource: 'manual' as const,
+            priceSampleCount: 0,
+            priceRangeMinimum: undefined,
+            priceRangeMaximum: undefined,
+          } : {}),
+          ...(change.dailyFrequency && change.periodDays ? {
+            dailyFrequency: change.dailyFrequency,
+            periodDays: change.periodDays,
+          } : {}),
           ...(unitChanged ? {
             priceSource: recommendation.priceSource,
             priceSampleCount: recommendation.priceSampleCount,
@@ -139,8 +175,13 @@ export function applyNeedsChanges(
           category: change.category,
           quantity: Math.max(1, Math.floor(change.quantity)),
           priority: change.priority,
+          unitPrice: change.userProvidedUnitPrice ?? current.unitPrice,
           priceSource: 'manual',
           priceSampleCount: 0,
+          ...(change.dailyFrequency && change.periodDays ? {
+            dailyFrequency: change.dailyFrequency,
+            periodDays: change.periodDays,
+          } : {}),
           priceRangeMinimum: undefined,
           priceRangeMaximum: undefined,
         }
@@ -149,7 +190,21 @@ export function applyNeedsChanges(
     }
 
     const newItem = recommendation
-      ? { ...recommendation, priority: change.priority }
+      ? {
+          ...recommendation,
+          priority: change.priority,
+          ...(change.userProvidedUnitPrice != null ? {
+            unitPrice: change.userProvidedUnitPrice,
+            priceSource: 'manual' as const,
+            priceSampleCount: 0,
+            priceRangeMinimum: undefined,
+            priceRangeMaximum: undefined,
+          } : {}),
+          ...(change.dailyFrequency && change.periodDays ? {
+            dailyFrequency: change.dailyFrequency,
+            periodDays: change.periodDays,
+          } : {}),
+        }
       : createCustomItem(change, now)
     const existingIndex = next.findIndex((item) => sameIdentity(item, newItem) && !item.isPurchased)
 
