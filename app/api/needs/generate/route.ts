@@ -66,6 +66,45 @@ const ALLOWED_UNITS = [
   'btr', 'potong',
 ] as const
 
+
+function canonicalizeCategory(value: string, itemName: string) {
+  const normalize = (text: string) => text.toLocaleLowerCase('id').replace(/[^a-z0-9]+/g, ' ').trim()
+  const direct = ALLOWED_CATEGORIES.find((entry) => normalize(entry) === normalize(value))
+  if (direct) return direct
+
+  const text = normalize(`${value} ${itemName}`)
+  if (/makan|makanan|minum|porsi|telur|beras|sayur|buah|daging|ayam|ikan|kopi/.test(text)) return 'Makanan & Minuman'
+  if (/proyek|project|kursi|kayu|lem|sekrup|paku|amplas|finishing|bahan/.test(text)) return 'Perlengkapan Proyek'
+  if (/kuliah|tugas|maket|print|kampus|buku/.test(text)) return 'Kuliah & Tugas'
+  if (/transport|ojek|bensin|parkir|perjalanan/.test(text)) return 'Transportasi'
+  if (/kos|kost|rumah|laundry|sabun|deterjen/.test(text)) return 'Rumah Tangga'
+  if (/tagihan|listrik|wifi|internet/.test(text)) return 'Tagihan'
+  return 'Lainnya'
+}
+
+function canonicalizeUnit(value: string, itemName: string) {
+  const normalize = (text: string) => text.toLocaleLowerCase('id').replace(/[^a-z0-9]+/g, ' ').trim()
+  const direct = ALLOWED_UNITS.find((entry) => normalize(entry) === normalize(value))
+  if (direct) return direct
+
+  const unit = normalize(value)
+  if (/kilogram|kilo gram|kilo/.test(unit)) return 'kg'
+  if (/gram|gr\b/.test(unit)) return 'gram'
+  if (/liter|litre|ltr/.test(unit)) return 'liter'
+  if (/portion|serving|porsi/.test(unit)) return 'porsi'
+  if (/piece|pieces|buah|unit|item/.test(unit)) return 'pcs'
+  if (/batang|stick/.test(unit)) return 'batang'
+  if (/lembar|sheet/.test(unit)) return 'lembar'
+  if (/bottle|botol/.test(unit)) return 'botol'
+  if (/bag|pack|paket/.test(unit)) return 'pack'
+  if (/day|hari/.test(unit)) return 'hari'
+  if (/month|bulan/.test(unit)) return 'bulan'
+  if (/cup|glass|gelas/.test(unit)) return 'gelas'
+  if (/bundle|set|paket/.test(unit)) return 'set'
+  if (/^$/.test(unit)) return /makan|nasi|sarapan|makan siang|makan malam/i.test(itemName) ? 'porsi' : 'pcs'
+  return 'pcs'
+}
+
 function extractExplicitPrices(description: string) {
   const prices = new Set<number>()
   const text = description.toLocaleLowerCase('id')
@@ -282,8 +321,10 @@ export async function POST(request: Request) {
       const itemKey = typeof value.itemKey === 'string' ? value.itemKey : ''
       const targetItemId = typeof value.targetItemId === 'string' ? value.targetItemId : null
       const name = typeof value.name === 'string' ? value.name.trim().slice(0, 100) : ''
-      const category = typeof value.category === 'string' ? value.category.trim().slice(0, 80) : ''
-      const unit = typeof value.unit === 'string' ? value.unit.trim().slice(0, 40) : ''
+      const rawCategory = typeof value.category === 'string' ? value.category.trim().slice(0, 80) : ''
+      const rawUnit = typeof value.unit === 'string' ? value.unit.trim().slice(0, 40) : ''
+      const category = canonicalizeCategory(rawCategory, name)
+      const unit = canonicalizeUnit(rawUnit, name)
       const rawQuantity = Number(value.quantity)
       const explicitPrices = extractExplicitPrices(description)
       const modelPrice = value.userProvidedUnitPrice == null ? null : Number(value.userProvidedUnitPrice)
@@ -307,9 +348,6 @@ export async function POST(request: Request) {
       if (!['add', 'update', 'remove'].includes(String(action))
         || !Number.isInteger(quantity) || quantity < 1 || quantity > 10000
         || !priority) return []
-      if (!ALLOWED_CATEGORIES.includes(category as typeof ALLOWED_CATEGORIES[number])
-        || !ALLOWED_UNITS.includes(unit as typeof ALLOWED_UNITS[number])) return []
-
       if (action === 'remove') {
         if (!canRemove || !targetItemId || !existingIds.has(targetItemId)) return []
       } else if (action === 'update') {
