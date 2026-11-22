@@ -77,7 +77,7 @@ export function applyNeedsChanges(
   changes: NeedsGenerationChange[],
   { period, priceHistory = [], now = Date.now() }: ApplyNeedsChangesOptions,
 ): MergeableNeedsItem[] {
-  let next = currentItems.map((item, index) => ({
+  let next: MergeableNeedsItem[] = currentItems.map((item, index) => ({
     ...item,
     id: item.id ?? `existing-${index}-${now}`,
   }))
