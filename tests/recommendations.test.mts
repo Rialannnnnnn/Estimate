@@ -160,3 +160,47 @@ test('all ten templates generate items with no description and are labeled as sa
   }
   assert.equal(templates['anak-kos'].budget, 1500000)
 })
+
+const fixedNow = new Date('2026-11-23T00:00:00.000Z').getTime()
+const personalHistory: PriceObservation[] = [
+  { name: 'Makan harian', category: 'Makan · hari', actualPrice: 30000, recordedAt: '2026-10-01T00:00:00.000Z' },
+  { name: 'Makan harian', category: 'Makan · hari', actualPrice: 35000, recordedAt: '2026-10-10T00:00:00.000Z' },
+  { name: 'Makan harian', category: 'Makan · hari', actualPrice: 40000, recordedAt: '2026-11-01T00:00:00.000Z' },
+]
+
+test('personal price estimate uses median from at least three exact item and unit matches', () => {
+  const estimate = estimatePersonalUnitPrice('Makan harian', 'Makan · hari', personalHistory, fixedNow)
+  assert.deepEqual(estimate, { median: 35000, minimum: 30000, maximum: 40000, sampleCount: 3 })
+})
+
+test('personal history does not mix a different unit or category', () => {
+  const mismatched = personalHistory.map((entry) => ({ ...entry, category: 'Makan · porsi' }))
+  assert.equal(estimatePersonalUnitPrice('Makan harian', 'Makan · hari', mismatched, fixedNow), null)
+})
+
+test('personal history requires three observations', () => {
+  assert.equal(estimatePersonalUnitPrice('Makan harian', 'Makan · hari', personalHistory.slice(0, 2), fixedNow), null)
+})
+
+test('personal history ignores observations older than 12 months and future-dated observations', () => {
+  const staleOrFuture: PriceObservation[] = [
+    ...personalHistory.slice(0, 2),
+    { name: 'Makan harian', category: 'Makan · hari', actualPrice: 36000, recordedAt: '2024-10-01T00:00:00.000Z' },
+    { name: 'Makan harian', category: 'Makan · hari', actualPrice: 37000, recordedAt: '2026-12-01T00:00:00.000Z' },
+  ]
+  assert.equal(estimatePersonalUnitPrice('Makan harian', 'Makan · hari', staleOrFuture, fixedNow), null)
+})
+
+test('generator uses personal median only for matching items and preserves catalogue fallback', () => {
+  const result = generateRecommendations({
+    description: 'makan harian',
+    period: 'daily',
+    priceHistory: personalHistory,
+    now: fixedNow,
+  })
+  const item = result.items.find((entry) => entry.itemKey === 'makan-harian')
+  assert.ok(item)
+  assert.equal(item.unitPrice, 35000)
+  assert.equal(item.priceSource, 'personal-history')
+  assert.equal(item.priceSampleCount, 3)
+})
