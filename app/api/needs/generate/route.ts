@@ -200,10 +200,10 @@ export async function POST(request: Request) {
       }]
     })
 
-    const safeConversation = conversation.slice(-6).flatMap((entry) => {
+    const safeConversation = conversation.slice(-16).flatMap((entry) => {
       if (!isRecord(entry)) return []
       if ((entry.role !== 'user' && entry.role !== 'assistant') || typeof entry.content !== 'string') return []
-      return [{ role: entry.role, content: entry.content.slice(0, 1200) }]
+      return [{ role: entry.role, content: entry.content.slice(0, 1600) }]
     })
 
     const apiKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN
