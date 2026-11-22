@@ -5,6 +5,8 @@ import {
   calculateEstimatedTotal,
   calculateProjectedTotal,
   calculateRemainingBudget,
+  formatCurrencyInput,
+  parseCurrencyInput,
   getBudgetStatus,
 } from '../lib/budget.ts'
 import type { Material } from '../lib/types.ts'
@@ -54,4 +56,18 @@ test('budget status uses projected spending thresholds', () => {
   assert.equal(getBudgetStatus(79000, 100000), 'safe')
   assert.equal(getBudgetStatus(80000, 100000), 'warning')
   assert.equal(getBudgetStatus(100001, 100000), 'danger')
+})
+
+test('rupiah input formats thousands with Indonesian separators', () => {
+  assert.equal(formatCurrencyInput('35000'), '35.000')
+  assert.equal(formatCurrencyInput('1250000'), '1.250.000')
+  assert.equal(formatCurrencyInput('Rp 1.250.000'), '1.250.000')
+  assert.equal(formatCurrencyInput('00035000'), '35.000')
+  assert.equal(formatCurrencyInput(''), '')
+})
+
+test('rupiah parser converts formatted values back into exact integer amounts', () => {
+  assert.equal(parseCurrencyInput('35.000'), 35000)
+  assert.equal(parseCurrencyInput('1.250.000'), 1250000)
+  assert.equal(parseCurrencyInput('Rp 75.000'), 75000)
 })
