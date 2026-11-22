@@ -102,6 +102,9 @@ export function applyNeedsChanges(
         })
       : null
 
+    // A known catalog item with an unsupported unit must never fall through as a custom item.
+    if (isCatalogItem && !recommendation) continue
+
     if (change.action === 'update') {
       if (!change.targetItemId) continue
       const targetIndex = next.findIndex((item) => item.id === change.targetItemId)
