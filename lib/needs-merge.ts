@@ -172,16 +172,14 @@ export function applyNeedsChanges(
         next[targetIndex] = {
           ...current,
           name: change.name,
-          category: change.category,
+          category: `${change.category} · ${change.unit}`,
           quantity: Math.max(1, Math.floor(change.quantity)),
           priority: change.priority,
           unitPrice: change.userProvidedUnitPrice ?? current.unitPrice,
           priceSource: 'manual',
           priceSampleCount: 0,
-          ...(change.dailyFrequency && change.periodDays ? {
-            dailyFrequency: change.dailyFrequency,
-            periodDays: change.periodDays,
-          } : {}),
+          dailyFrequency: change.dailyFrequency ?? undefined,
+          periodDays: change.periodDays ?? undefined,
           priceRangeMinimum: undefined,
           priceRangeMaximum: undefined,
         }
@@ -225,7 +223,9 @@ export function applyNeedsChanges(
           ? { dailyFrequency: Math.min(24, existing.dailyFrequency + newItem.dailyFrequency), periodDays: existing.periodDays }
           : newItem.dailyFrequency && newItem.periodDays && !existing.dailyFrequency
             ? { dailyFrequency: newItem.dailyFrequency, periodDays: newItem.periodDays }
-            : {}),
+            : existing.dailyFrequency || newItem.dailyFrequency
+              ? { dailyFrequency: undefined, periodDays: undefined }
+              : {}),
       }
     } else {
       next = [...next, newItem]
