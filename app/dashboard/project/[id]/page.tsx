@@ -508,8 +508,16 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                   }}
                   onUpdate={(updates) => {
                     const dbUpdates: Partial<Material> = {}
-                    if (updates.name !== undefined) dbUpdates.name = updates.name
-                    if (updates.category !== undefined) dbUpdates.category = updates.category
+                    if (updates.name !== undefined) {
+                      dbUpdates.name = updates.name
+                      // A renamed item is no longer an observation for the old item name.
+                      dbUpdates.actual_price_recorded_at = null
+                    }
+                    if (updates.category !== undefined) {
+                      dbUpdates.category = updates.category
+                      // A changed category/unit must not reuse the previous history bucket.
+                      dbUpdates.actual_price_recorded_at = null
+                    }
                     if (updates.quantity !== undefined) dbUpdates.quantity = updates.quantity
                     if (updates.unitPrice !== undefined) dbUpdates.unit_price = updates.unitPrice
                     if ('actualPrice' in updates) {
