@@ -8,6 +8,8 @@ import type { Material } from '@/lib/types'
 import type { TemplateType } from '@/lib/templates'
 import { analyzeBudget, generateRecommendations, itemTotal, type DetectedContext, type Priority } from '@/lib/recommendations'
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/budget'
+import { createClient } from '@/lib/supabase/client'
+import type { PriceObservation } from '@/lib/recommendations'
 
 type Props = {
   period: 'daily' | 'monthly'
@@ -29,6 +31,9 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
   const [items, setItems] = useState<ReviewItem[]>(initialItems)
   const [contexts, setContexts] = useState<DetectedContext[]>([])
   const [usedFallback, setUsedFallback] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [priceHistoryNotice, setPriceHistoryNotice] = useState('')
+  const supabase = createClient()
 
   const budget = budgetLimit && budgetLimit > 0 ? budgetLimit : null
   const analysis = useMemo(() => analyzeBudget(items, budget), [items, budget])
@@ -43,23 +48,74 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
         ? { ...item, quantity: newQuantity }
         : item))
   }
-  const runGenerate = () => {
-    const result = generateRecommendations({ description: criteria, period, templateType })
-    setItems(result.items)
-    setContexts(result.contexts)
-    setUsedFallback(result.usedFallback)
+  const runGenerate = async () => {
+    setIsGenerating(true)
+    setPriceHistoryNotice('Memeriksa riwayat pembelian pribadi selama 12 bulan terakhir...')
+    try {
+      const now = new Date()
+      const cutoff = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+
+      // RLS on project_materials limits this query to projects owned by the signed-in user.
+      const { data, error } = await supabase
+        .from('project_materials')
+        .select('name, category, actual_price, actual_price_recorded_at')
+        .eq('is_purchased', true)
+        .not('actual_price', 'is', null)
+        .not('actual_price_recorded_at', 'is', null)
+        .gte('actual_price_recorded_at', cutoff.toISOString())
+        .lte('actual_price_recorded_at', now.toISOString())
+
+      if (error) throw error
+
+      const priceHistory: PriceObservation[] = (data ?? [])
+        .filter((row) => row.actual_price != null && row.actual_price_recorded_at)
+        .map((row) => ({
+          name: row.name,
+          category: row.category,
+          actualPrice: Number(row.actual_price),
+          recordedAt: row.actual_price_recorded_at as string,
+        }))
+
+      const result = generateRecommendations({
+        description: criteria,
+        period,
+        templateType,
+        priceHistory,
+        now: now.getTime(),
+      })
+
+      setItems(result.items)
+      setContexts(result.contexts)
+      setUsedFallback(result.usedFallback)
+
+      const personalizedCount = result.items.filter((item) => item.priceSource === 'personal-history').length
+      setPriceHistoryNotice(
+        personalizedCount > 0
+          ? `${personalizedCount} item memakai median dari riwayat pembelian pribadimu. Item lain masih memakai katalog estimasi.`
+          : 'Belum ada minimal 3 catatan pembelian yang cocok untuk item dan satuan yang sama. Estimasi memakai katalog bawaan.'
+      )
+    } catch (error) {
+      console.error('Failed to load personal price history:', error)
+      const result = generateRecommendations({ description: criteria, period, templateType })
+      setItems(result.items)
+      setContexts(result.contexts)
+      setUsedFallback(result.usedFallback)
+      setPriceHistoryNotice('Riwayat harga pribadi belum dapat dimuat. Estimasi sementara memakai katalog bawaan.')
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   return (
     <section className="border border-border/70 bg-card/90 rounded-3xl p-6 md:p-8 shadow-[0_18px_60px_rgba(23,59,88,.07)]">
-      <div className="flex items-start justify-between gap-4 mb-7"><div><p className="text-label font-bold text-primary mb-2 flex items-center gap-2"><Sparkles className="h-4 w-4" /> RINCI KEBUTUHAN</p><h2 className="text-2xl md:text-3xl font-semibold">Apa saja yang perlu dibeli?</h2><p className="text-sm text-muted-foreground mt-2 max-w-2xl text-pretty">Ceritakan situasimu: kegiatan, tempat tinggal, transportasi, atau barang yang kamu pikirkan. EstiMate mencocokkan kata kunci dan template yang kamu pilih dengan daftar rekomendasi, lalu memecahnya menjadi item dengan kuantitas, satuan, dan harga per satuan.</p></div><span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-primary">{period === 'daily' ? 'Harian' : 'Bulanan'}</span></div>
+      <div className="flex items-start justify-between gap-4 mb-7"><div><p className="text-label font-bold text-primary mb-2 flex items-center gap-2"><Sparkles className="h-4 w-4" /> RINCI KEBUTUHAN</p><h2 className="text-2xl md:text-3xl font-semibold">Apa saja yang perlu dibeli?</h2><p className="text-sm text-muted-foreground mt-2 max-w-2xl text-pretty">Ceritakan situasimu: kegiatan, tempat tinggal, transportasi, atau barang yang kamu pikirkan. EstiMate menyusun kebutuhan dari konteks dan template, lalu menyesuaikan estimasi jika ada riwayat harga pribadimu yang cukup dan cocok.</p></div><span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-primary">{period === 'daily' ? 'Harian' : 'Bulanan'}</span></div>
       <p className="mb-3 rounded-2xl border border-border/70 bg-secondary px-4 py-3 text-sm text-primary" role="note">
         {isExampleBudget
           ? `Batas anggaran sementara: ${budget ? rupiah(budget) : 'belum ada'} (contoh dari template). Kembali ke form untuk memasukkan budget kamu sendiri.`
           : `Batas anggaran pilihanmu: ${budget ? rupiah(budget) : 'belum ada'}. Rekomendasi tidak wajib menghabiskan seluruh budget.`}
       </p>
       <textarea value={criteria} onChange={(event) => setCriteria(event.target.value)} aria-label="Deskripsi kebutuhan" placeholder="Contoh: aku mahasiswa desain, bulan ini banyak tugas maket dan harus print 3 laporan. Ke kampus naik ojek." className="min-h-28 w-full resize-y rounded-2xl border border-border bg-background p-4 text-sm leading-relaxed outline-none focus:border-primary" />
-      <div className="mt-4 flex flex-wrap gap-3"><Button onClick={runGenerate} className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"><RefreshCw className="mr-2 h-4 w-4" /> Generate item belanja</Button><Button variant="ghost" onClick={onBack} className="rounded-full">Kembali ubah rencana</Button></div>
+      <div className="mt-4 flex flex-wrap gap-3"><Button onClick={() => void runGenerate()} disabled={isGenerating} className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"><RefreshCw className="mr-2 h-4 w-4" /> {isGenerating ? 'Memeriksa harga...' : 'Generate item belanja'}</Button><Button variant="ghost" onClick={onBack} className="rounded-full">Kembali ubah rencana</Button></div>
 
       {contexts.length > 0 && (
         <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
@@ -74,6 +130,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
         </div>
       )}
       {usedFallback && <p className="mt-3 text-sm text-muted-foreground">Belum ada kata kunci yang cocok, jadi EstiMate menampilkan kebutuhan dasar. Tambahkan detail agar rekomendasinya lebih relevan.</p>}
+      {priceHistoryNotice && <p className="mt-3 rounded-xl border border-border bg-secondary px-3 py-2 text-xs leading-relaxed text-muted-foreground" role="status">{priceHistoryNotice}</p>}
 
       {items.length > 0 && <div className="mt-8 border-t border-border/70 pt-7">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><h3 className="font-semibold">Review item belanja</h3><p className="text-sm text-muted-foreground">Harga adalah estimasi per satuan. Kamu masih bisa mengubah semuanya.</p></div><p className="font-mono text-sm text-primary">Total estimasi {rupiah(total)}</p></div>
@@ -86,6 +143,9 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <button type="button" onClick={() => update(index, { priority: isOptional ? 'essential' : 'optional' })} aria-label={`Prioritas ${item.name}: ${isOptional ? 'opsional' : 'penting'}. Klik untuk mengubah.`} className={`rounded-full border px-2.5 py-0.5 font-medium transition-colors ${isOptional ? 'border-border text-muted-foreground hover:bg-secondary' : 'border-primary/30 bg-secondary text-primary hover:bg-secondary/70'}`}>{isOptional ? 'Opsional' : 'Penting'}</button>
                 <span className="font-mono">{item.quantity} × {rupiah(item.unitPrice || 0)}</span>
+                {item.priceSource === 'personal-history' && item.priceRangeMinimum != null && item.priceRangeMaximum != null
+                  ? <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-primary">Riwayat pribadi · {item.priceSampleCount} catatan · rentang {rupiah(item.priceRangeMinimum)}–{rupiah(item.priceRangeMaximum)}</span>
+                  : <span className="rounded-full border border-border px-2 py-0.5">Katalog estimasi</span>}
                 {item.reason && <span>· {item.reason}</span>}
               </div>
             </div>
