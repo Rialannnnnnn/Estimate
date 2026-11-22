@@ -154,11 +154,9 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
         typeof payload.clarifyingQuestion === 'string' ? payload.clarifyingQuestion : '',
       ].filter(Boolean).join(' ')
       setAssistantMessage(reply)
-      setConversation((current): ConversationTurn[] => [
-        ...current,
-        { role: 'user', content: prompt },
-        { role: 'assistant', content: reply },
-      ].slice(-8))
+      const userTurn: ConversationTurn = { role: 'user', content: prompt }
+      const assistantTurn: ConversationTurn = { role: 'assistant', content: reply }
+      setConversation((current) => [...current, userTurn, assistantTurn].slice(-8))
       setCriteria('')
 
       const personalCount = nextItems.filter((item) => item.priceSource === 'personal-history').length
