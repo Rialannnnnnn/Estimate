@@ -18,6 +18,8 @@ import {
   calculateEstimatedTotal,
   calculateProjectedTotal,
   formatCurrency,
+  formatCurrencyInput,
+  parseCurrencyInput,
   getBudgetStatus,
 } from '@/lib/budget'
 import { templates } from '@/lib/templates'
@@ -83,7 +85,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         if (projectError) throw projectError
 
         setEditName(projectData.name)
-        setEditBudget(projectData.budget.toString())
+        setEditBudget(formatCurrencyInput(projectData.budget))
 
         // Fetch materials
         const { data: materialsData, error: materialsError } = await supabase
@@ -145,7 +147,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const handleUpdateBudget = async () => {
     if (!project) return
 
-    const budgetAmount = parseFloat(editBudget)
+    const budgetAmount = parseCurrencyInput(editBudget)
     if (isNaN(budgetAmount)) return
 
     try {
@@ -352,9 +354,10 @@ export default function ProjectPage({ params }: ProjectPageProps) {
               {isEditingBudget ? (
                 <div className="flex items-center gap-2">
                   <Input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={editBudget}
-                    onChange={(e) => setEditBudget(e.target.value)}
+                    onChange={(e) => setEditBudget(formatCurrencyInput(e.target.value))}
                     aria-label="Jumlah dana"
                     className="bg-white/10 border-white/30 text-white text-lg font-bold w-36 h-auto py-1"
                   />
