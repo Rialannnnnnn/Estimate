@@ -47,9 +47,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function mayRemoveItems(description: string) {
-  return /\b(hapus|menghapus|hilangkan|buang|tidak perlu|nggak perlu|ga perlu|gak perlu|sudah tidak butuh|jangan dimasukkan|jangan masukkan)\b/i.test(description)
+  if (/\\b(jangan|tanpa|tidak|nggak|gak|ga)\\b.{0,24}\\b(hapus|menghapus|hilangkan|buang)\\b/i.test(description)) return false
+  return /\\b(hapus|menghapus|hilangkan|buang|tidak perlu lagi|nggak perlu lagi|ga perlu lagi|gak perlu lagi|sudah tidak butuh)\\b/i.test(description)
 }
-
 function isExplicitBulkReset(description: string) {
   return /(hapus semua|kosongkan daftar|reset daftar|mulai ulang daftar|mulai dari awal|ganti seluruh daftar|buat ulang seluruh daftar)/i.test(description)
 }
@@ -175,7 +175,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Respons AI tidak dapat dibaca. Daftar kamu tetap aman.' }, { status: 502 })
     }
 
-    const message = payload.choices[0].message
+    const firstChoice = payload.choices[0]
+    const message = firstChoice.message
     if (!isRecord(message) || typeof message.content !== 'string') {
       return NextResponse.json({ error: 'AI belum memberikan perubahan yang valid. Daftar kamu tetap aman.' }, { status: 502 })
     }
