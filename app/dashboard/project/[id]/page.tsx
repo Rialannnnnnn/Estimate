@@ -480,12 +480,15 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                     isPurchased: material.is_purchased,
                     category: material.category,
                   }}
-                  onUpdate={(updated) => {
-                    handleUpdateMaterial(material.id, {
-                      quantity: updated.quantity,
-                      actual_price: updated.actualPrice ?? null,
-                      is_purchased: updated.isPurchased,
-                    })
+                  onUpdate={(updates) => {
+                    const dbUpdates: Partial<Material> = {}
+                    if (updates.name !== undefined) dbUpdates.name = updates.name
+                    if (updates.category !== undefined) dbUpdates.category = updates.category
+                    if (updates.quantity !== undefined) dbUpdates.quantity = updates.quantity
+                    if (updates.unitPrice !== undefined) dbUpdates.unit_price = updates.unitPrice
+                    if ('actualPrice' in updates) dbUpdates.actual_price = updates.actualPrice ?? null
+                    if (updates.isPurchased !== undefined) dbUpdates.is_purchased = updates.isPurchased
+                    void handleUpdateMaterial(material.id, dbUpdates)
                   }}
                   onDelete={() => handleDeleteMaterial(material.id)}
                 />
