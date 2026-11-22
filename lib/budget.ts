@@ -49,8 +49,16 @@ export function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
+export function formatCurrencyInput(value: string | number): string {
+  const digits = String(value).replace(/\D/g, '')
+  if (!digits) return ''
+
+  const normalized = digits.replace(/^0+(?=\d)/, '')
+  return normalized.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
+
 export function parseCurrencyInput(value: string): number {
-  // Remove all non-digit characters
+  // Accept plain digits and Indonesian thousands separators.
   const cleaned = value.replace(/\D/g, '')
   return parseInt(cleaned, 10) || 0
 }
