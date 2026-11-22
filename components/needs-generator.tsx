@@ -154,7 +154,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
         typeof payload.clarifyingQuestion === 'string' ? payload.clarifyingQuestion : '',
       ].filter(Boolean).join(' ')
       setAssistantMessage(reply)
-      setConversation((current) => [
+      setConversation((current): ConversationTurn[] => [
         ...current,
         { role: 'user', content: prompt },
         { role: 'assistant', content: reply },
