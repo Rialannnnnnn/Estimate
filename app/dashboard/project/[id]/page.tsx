@@ -82,7 +82,6 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
         if (projectError) throw projectError
 
-        setProject(projectData as Project)
         setEditName(projectData.name)
         setEditBudget(projectData.budget.toString())
 
@@ -94,7 +93,27 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           .order('created_at', { ascending: true })
 
         if (materialsError) throw materialsError
-        setMaterials(materialsData as Material[])
+
+        const loadedMaterials = (materialsData ?? []) as Material[]
+        const actualSpent = loadedMaterials.reduce((sum, material) => {
+          if (material.is_purchased && material.actual_price != null) {
+            return sum + Number(material.actual_price) * Number(material.quantity)
+          }
+          return sum
+        }, 0)
+
+        // Reconcile older cached totals so dashboard summaries use the same rule.
+        if (Number(projectData.spent ?? 0) !== actualSpent) {
+          const { error: spentError } = await supabase
+            .from('projects')
+            .update({ spent: actualSpent })
+            .eq('id', id)
+
+          if (spentError) throw spentError
+        }
+
+        setProject({ ...projectData, spent: actualSpent } as Project)
+        setMaterials(loadedMaterials)
       } catch (err) {
         console.error('Error loading project:', err)
       } finally {
