@@ -1,14 +1,16 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ArrowRight, Check, Info, Plus, RefreshCw, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowRight, Check, Info, Plus, RefreshCw, Send, Sparkles, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import type { Material } from '@/lib/types'
 import type { TemplateType } from '@/lib/templates'
 import { analyzeBudget, generateRecommendations, itemTotal, type DetectedContext, type Priority, type PriceObservation } from '@/lib/recommendations'
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/budget'
 import { createClient } from '@/lib/supabase/client'
+import { applyNeedsChanges, type NeedsGenerationChange } from '@/lib/needs-merge'
 
 type Props = {
   period: 'daily' | 'monthly'
@@ -28,17 +30,23 @@ type ReviewItem = Material & {
   priceSampleCount?: number
   priceRangeMinimum?: number
   priceRangeMaximum?: number
+  itemKey?: string
 }
+
+type ConversationTurn = { role: 'user' | 'assistant'; content: string }
 
 const rupiah = (value: number) => `Rp ${value.toLocaleString('id-ID')}`
 
 export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBudget = false, initialCriteria, initialItems, onConfirm, onBack }: Props) {
   const [criteria, setCriteria] = useState(initialCriteria)
-  const [items, setItems] = useState<ReviewItem[]>(initialItems)
-  const [contexts, setContexts] = useState<DetectedContext[]>([])
-  const [usedFallback, setUsedFallback] = useState(false)
+  const [items, setItems] = useState<ReviewItem[]>(() => initialItems.map((item, index) => ({
+    ...item,
+    id: item.id ?? `initial-${Date.now()}-${index}`,
+  })))
   const [isGenerating, setIsGenerating] = useState(false)
   const [priceHistoryNotice, setPriceHistoryNotice] = useState('')
+  const [assistantMessage, setAssistantMessage] = useState('')
+  const [conversation, setConversation] = useState<ConversationTurn[]>([])
   const supabase = createClient()
 
   const budget = budgetLimit && budgetLimit > 0 ? budgetLimit : null
@@ -52,6 +60,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
       ...item,
       ...patch,
       ...(overridesPriceBasis ? {
+        itemKey: undefined,
         priceSource: 'manual' as const,
         priceSampleCount: 0,
         priceRangeMinimum: undefined,
@@ -59,7 +68,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
       } : {}),
     }
   }))
-  const addItem = () => setItems((current) => [...current, { id: `custom-${Date.now()}`, name: 'Kebutuhan baru', category: 'Lainnya · unit', quantity: 1, unitPrice: 0, actualPrice: null, isPurchased: false, priority: 'essential', reason: 'ditambahkan manual', priceSource: 'manual', priceSampleCount: 0 }])
+  const addItem = () => setItems((current) => [...current, { id: `custom-${Date.now()}`, name: 'Kebutuhan baru', category: 'Lainnya · unit', quantity: 1, unitPrice: 0, actualPrice: null, isPurchased: false, priority: 'essential', reason: 'ditambahkan manual', priceSource: 'manual', priceSampleCount: 0, itemKey: undefined }])
   const applySuggestion = (id: string, kind: 'remove' | 'reduce', newQuantity?: number) => {
     setItems((current) => kind === 'remove'
       ? current.filter((item) => (item.id ?? item.name) !== id)
@@ -68,58 +77,98 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
         : item))
   }
   const runGenerate = async () => {
+    const prompt = criteria.trim()
+    if (!prompt || isGenerating) return
+
     setIsGenerating(true)
-    setPriceHistoryNotice('Memeriksa riwayat pembelian pribadi selama 12 bulan terakhir...')
+    setPriceHistoryNotice('Memeriksa riwayat pembelian pribadi...')
+    setAssistantMessage('')
+
     try {
       const now = new Date()
       const cutoff = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+      let priceHistory: PriceObservation[] = []
+      let historyWarning = ''
 
-      // RLS on project_materials limits this query to projects owned by the signed-in user.
-      const { data, error } = await supabase
-        .from('project_materials')
-        .select('name, category, actual_price, actual_price_recorded_at')
-        .eq('is_purchased', true)
-        .not('actual_price', 'is', null)
-        .not('actual_price_recorded_at', 'is', null)
-        .gte('actual_price_recorded_at', cutoff.toISOString())
-        .lte('actual_price_recorded_at', now.toISOString())
+      try {
+        // RLS on project_materials limits this query to projects owned by the signed-in user.
+        const { data, error } = await supabase
+          .from('project_materials')
+          .select('name, category, actual_price, actual_price_recorded_at')
+          .eq('is_purchased', true)
+          .not('actual_price', 'is', null)
+          .not('actual_price_recorded_at', 'is', null)
+          .gte('actual_price_recorded_at', cutoff.toISOString())
+          .lte('actual_price_recorded_at', now.toISOString())
 
-      if (error) throw error
+        if (error) throw error
+        priceHistory = (data ?? [])
+          .filter((row) => row.actual_price != null && row.actual_price_recorded_at)
+          .map((row) => ({
+            name: row.name,
+            category: row.category,
+            actualPrice: Number(row.actual_price),
+            recordedAt: row.actual_price_recorded_at as string,
+          }))
+      } catch (historyError) {
+        console.error('Failed to load personal price history:', historyError)
+        historyWarning = 'Riwayat harga pribadi belum dapat dimuat; item baru memakai katalog estimasi.'
+      }
 
-      const priceHistory: PriceObservation[] = (data ?? [])
-        .filter((row) => row.actual_price != null && row.actual_price_recorded_at)
-        .map((row) => ({
-          name: row.name,
-          category: row.category,
-          actualPrice: Number(row.actual_price),
-          recordedAt: row.actual_price_recorded_at as string,
-        }))
+      const response = await fetch('/api/needs/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: prompt,
+          period,
+          templateType,
+          currentItems: items.map((item) => ({
+            id: item.id,
+            itemKey: item.itemKey,
+            name: item.name,
+            category: item.category,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            isPurchased: item.isPurchased === true,
+          })),
+          conversation: conversation.slice(-6),
+        }),
+      })
 
-      const result = generateRecommendations({
-        description: criteria,
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(typeof payload.error === 'string' ? payload.error : 'AI EstiMate tidak dapat memproses instruksi.')
+      }
+
+      const changes = Array.isArray(payload.changes) ? payload.changes as NeedsGenerationChange[] : []
+      const nextItems = applyNeedsChanges(items, changes, {
         period,
-        templateType,
         priceHistory,
         now: now.getTime(),
       })
 
-      setItems(result.items)
-      setContexts(result.contexts)
-      setUsedFallback(result.usedFallback)
+      setItems(nextItems)
+      const reply = [
+        typeof payload.assistantMessage === 'string' ? payload.assistantMessage : 'Instruksi sudah diproses.',
+        typeof payload.clarifyingQuestion === 'string' ? payload.clarifyingQuestion : '',
+      ].filter(Boolean).join(' ')
+      setAssistantMessage(reply)
+      setConversation((current) => [
+        ...current,
+        { role: 'user', content: prompt },
+        { role: 'assistant', content: reply },
+      ].slice(-8))
+      setCriteria('')
 
-      const personalizedCount = result.items.filter((item) => item.priceSource === 'personal-history').length
+      const personalCount = nextItems.filter((item) => item.priceSource === 'personal-history').length
       setPriceHistoryNotice(
-        personalizedCount > 0
-          ? `${personalizedCount} item memakai median dari riwayat pembelian pribadimu. Item lain masih memakai katalog estimasi.`
-          : 'Belum ada minimal 3 catatan pembelian yang cocok untuk item dan satuan yang sama. Estimasi memakai katalog bawaan.'
+        historyWarning || (personalCount > 0
+          ? `${personalCount} item memakai median dari riwayat pembelian pribadimu. Harga lainnya berasal dari katalog atau input manual.`
+          : 'Harga item baru berasal dari katalog estimasi atau perlu kamu isi manual. AI tidak mengarang harga.')
       )
     } catch (error) {
-      console.error('Failed to load personal price history:', error)
-      const result = generateRecommendations({ description: criteria, period, templateType })
-      setItems(result.items)
-      setContexts(result.contexts)
-      setUsedFallback(result.usedFallback)
-      setPriceHistoryNotice('Riwayat harga pribadi belum dapat dimuat. Estimasi sementara memakai katalog bawaan.')
+      console.error('AI needs generation failed:', error)
+      setAssistantMessage(error instanceof Error ? error.message : 'Terjadi kesalahan saat memproses instruksi. Daftar tetap aman.')
     } finally {
       setIsGenerating(false)
     }
@@ -127,33 +176,21 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
 
   return (
     <section className="border border-border/70 bg-card/90 rounded-3xl p-6 md:p-8 shadow-[0_18px_60px_rgba(23,59,88,.07)]">
-      <div className="flex items-start justify-between gap-4 mb-7"><div><p className="text-label font-bold text-primary mb-2 flex items-center gap-2"><Sparkles className="h-4 w-4" /> RINCI KEBUTUHAN</p><h2 className="text-2xl md:text-3xl font-semibold">Apa saja yang perlu dibeli?</h2><p className="text-sm text-muted-foreground mt-2 max-w-2xl text-pretty">Ceritakan situasimu: kegiatan, tempat tinggal, transportasi, atau barang yang kamu pikirkan. EstiMate menyusun kebutuhan dari konteks dan template, lalu menyesuaikan estimasi jika ada riwayat harga pribadimu yang cukup dan cocok.</p></div><span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-primary">{period === 'daily' ? 'Harian' : 'Bulanan'}</span></div>
+      <div className="flex items-start justify-between gap-4 mb-7"><div><p className="text-label font-bold text-primary mb-2 flex items-center gap-2"><Sparkles className="h-4 w-4" /> RINCI KEBUTUHAN</p><h2 className="text-2xl md:text-3xl font-semibold">Apa saja yang perlu dibeli?</h2><p className="text-sm text-muted-foreground mt-2 max-w-2xl text-pretty">Ketik dengan bahasa sehari-hari seperti sedang chat. AI akan memahami konteks, jumlah, dan satuan. Setiap instruksi hanya menambah atau mengubah item yang kamu sebut; item lain tetap aman.</p></div><span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-primary">{period === 'daily' ? 'Harian' : 'Bulanan'}</span></div>
       <p className="mb-3 rounded-2xl border border-border/70 bg-secondary px-4 py-3 text-sm text-primary" role="note">
         {isExampleBudget
           ? `Batas anggaran sementara: ${budget ? rupiah(budget) : 'belum ada'} (contoh dari template). Kembali ke form untuk memasukkan budget kamu sendiri.`
           : `Batas anggaran pilihanmu: ${budget ? rupiah(budget) : 'belum ada'}. Rekomendasi tidak wajib menghabiskan seluruh budget.`}
       </p>
-      <textarea value={criteria} onChange={(event) => setCriteria(event.target.value)} aria-label="Deskripsi kebutuhan" placeholder="Contoh: aku mahasiswa desain, bulan ini banyak tugas maket dan harus print 3 laporan. Ke kampus naik ojek." className="min-h-28 w-full resize-y rounded-2xl border border-border bg-background p-4 text-sm leading-relaxed outline-none focus:border-primary" />
-      <div className="mt-4 flex flex-wrap gap-3"><Button onClick={() => void runGenerate()} disabled={isGenerating} className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"><RefreshCw className="mr-2 h-4 w-4" /> {isGenerating ? 'Memeriksa harga...' : 'Generate item belanja'}</Button><Button variant="ghost" onClick={onBack} className="rounded-full">Kembali ubah rencana</Button></div>
+      <Textarea value={criteria} onChange={(event) => setCriteria(event.target.value)} aria-label="Instruksi untuk AI EstiMate" placeholder="Contoh: Tambahkan telur 2 kg. Jangan ubah daftar yang sudah ada. Laundry bulan ini cukup 8 kg." className="min-h-28 rounded-2xl border border-border bg-background p-4 text-sm leading-relaxed" />
+      <div className="mt-4 flex flex-wrap gap-3"><Button onClick={() => void runGenerate()} disabled={isGenerating || !criteria.trim()} className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"><Send className="mr-2 h-4 w-4" /> {isGenerating ? 'AI sedang memahami...' : 'Kirim ke AI EstiMate'}</Button><Button variant="ghost" onClick={onBack} className="rounded-full">Kembali ubah rencana</Button></div>
+      {assistantMessage && <div className="mt-4 rounded-2xl border border-border bg-secondary px-4 py-3 text-sm leading-relaxed" role="status"><span className="mb-1 block text-xs font-semibold text-primary">AI ESTIMATE</span>{assistantMessage}</div>}
 
-      {contexts.length > 0 && (
-        <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-muted-foreground">Konteks terdeteksi:</span>
-          {contexts.map((context) => (
-            <span key={context.id} className="rounded-full border border-border bg-secondary px-3 py-1 font-medium text-primary">
-              {context.label}
-              <span className="sr-only">{context.source === 'template' ? ' (dari template)' : ' (dari deskripsi)'}</span>
-              {context.source === 'template' && <span className="text-muted-foreground"> · template</span>}
-            </span>
-          ))}
-        </div>
-      )}
-      {usedFallback && <p className="mt-3 text-sm text-muted-foreground">Belum ada kata kunci yang cocok, jadi EstiMate menampilkan kebutuhan dasar. Tambahkan detail agar rekomendasinya lebih relevan.</p>}
       {priceHistoryNotice && <p className="mt-3 rounded-xl border border-border bg-secondary px-3 py-2 text-xs leading-relaxed text-muted-foreground" role="status">{priceHistoryNotice}</p>}
 
       {items.length > 0 && <div className="mt-8 border-t border-border/70 pt-7">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><h3 className="font-semibold">Review item belanja</h3><p className="text-sm text-muted-foreground">Harga adalah estimasi per satuan. Kamu masih bisa mengubah semuanya.</p></div><p className="font-mono text-sm text-primary">Total estimasi {rupiah(total)}</p></div>
-        <p className="mb-4 flex items-start gap-2 rounded-2xl bg-secondary px-4 py-3 text-xs leading-relaxed text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" /><span>Daftar kebutuhan disusun dari konteks dan katalog. Harga pribadi hanya dipakai jika tersedia minimal 3 pembelian dengan nama, kategori, dan satuan yang sama dalam 12 bulan terakhir. Selain itu, harga tetap memakai katalog estimasi—bukan harga pasar real-time.</span></p>
+        <p className="mb-4 flex items-start gap-2 rounded-2xl bg-secondary px-4 py-3 text-xs leading-relaxed text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" /><span>AI memahami instruksi dan hanya mengirim perubahan yang diminta. Item yang tidak disebut tetap dipertahankan. Harga pribadi hanya dipakai jika tersedia minimal 3 pembelian dengan nama, kategori, dan satuan yang sama dalam 12 bulan terakhir. Jika belum ada, aplikasi memakai katalog; item di luar katalog perlu diisi manual. AI tidak mengarang harga.</span></p>
         <div className="space-y-3">{items.map((item, index) => {
           const isOptional = item.priority === 'optional'
           return (
