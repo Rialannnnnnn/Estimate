@@ -509,13 +509,6 @@ export function generateRecommendations({ description, period, templateType, pri
         priceRangeMinimum: personalPrice.minimum,
         priceRangeMaximum: personalPrice.maximum,
       } : {}),
-      reason:
-      unit,
-      quantity,
-      unitPrice,
-      actualPrice: null,
-      isPurchased: false,
-      priority: def.priority,
       reason: `${statedQty ? 'jumlah dari deskripsi, ' : ''}dari ${[...reasons].join(', ')}`,
     })
   }
