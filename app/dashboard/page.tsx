@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -42,6 +42,9 @@ export default function DashboardPage() {
   const [criteria, setCriteria] = useState('')
   const [generatedNeeds, setGeneratedNeeds] = useState<Material[]>([])
   const [creatingProject, setCreatingProject] = useState(false)
+  const handleGeneratedNeedsChange = useCallback((items: Material[]) => {
+    setGeneratedNeeds(items)
+  }, [])
   const [loggingOut, setLoggingOut] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -247,7 +250,7 @@ export default function DashboardPage() {
               <h2 className="text-2xl font-semibold text-foreground">Apa yang perlu kamu siapkan?</h2>
               <p className="text-sm text-muted-foreground mt-2">Pilih pola kebutuhan sebagai titik awal. Nominal pada template hanya contoh anggaran awal, bukan jumlah yang wajib dihabiskan. Semua item, jumlah, dan harga bisa kamu ubah.</p>
             </div>
-            {showNeedsGenerator && (
+            <div className={showNeedsGenerator ? '' : 'hidden'}>
               <NeedsGenerator
                 period={planningPeriod}
                 templateType={selectedTemplate}
@@ -255,13 +258,14 @@ export default function DashboardPage() {
                 isExampleBudget={!(parseCurrencyInput(budgetLimit) > 0)}
                 initialCriteria={criteria}
                 initialItems={generatedNeeds}
+                onItemsChange={handleGeneratedNeedsChange}
                 onConfirm={(items) => {
                   setGeneratedNeeds(items)
                   void handleCreateProject(items)
                 }}
                 onBack={() => setShowNeedsGenerator(false)}
               />
-            )}
+            </div>
             {!showNeedsGenerator && <TemplateSelector selected={selectedTemplate} onSelect={(type) => {
               setSelectedTemplate(type)
               setPlanningPeriod(type === 'harian-dasar' ? 'daily' : 'monthly')
