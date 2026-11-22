@@ -42,6 +42,8 @@ type CurrentItem = {
   quantity: number
   isPurchased: boolean
   itemKey?: string
+  dailyFrequency?: number
+  periodDays?: number
 }
 
 const ALLOWED_CATEGORIES = [
@@ -54,28 +56,38 @@ const ALLOWED_UNITS = [
   'pcs', 'buah', 'unit', 'porsi', 'butir', 'kg', 'gram', 'liter', 'ml',
   'botol', 'lembar', 'batang', 'meter', 'tube', 'pack', 'paket', 'roll',
   'set', 'kali', 'hari', 'bulan', 'perjalanan', 'galon', 'tabung',
-  'bungkus', 'pasang', 'box', 'rim', 'jam',
+  'bungkus', 'pasang', 'box', 'rim', 'jam', 'gelas', 'token', 'pouch',
+  'karung 5 kg', 'ikat', 'bungkus isi 10', 'papan', 'strip', 'orang',
+  'malam', 'tiket', 'setoran', 'alokasi', 'lbr', 'halaman', 'hal',
+  'eksemplar', 'rangkap', 'cup', 'trip', 'l', 'kilo', 'bks', 'karung',
+  'btr', 'potong',
 ] as const
 
 function extractExplicitPrices(description: string) {
   const prices = new Set<number>()
   const text = description.toLocaleLowerCase('id')
 
+  const normalizeAmount = (value: string) => Number(value.replace(/[.,]/g, ''))
+
   for (const match of text.matchAll(/(?:rp\s*)?(\d{1,3}(?:[.,]\d{3})+|\d+(?:[.,]\d+)?)\s*(ribu|rb|juta|jt)\b/g)) {
-    const value = Number(match[1].replace(/[.,]/g, ''))
+    const value = normalizeAmount(match[1])
     if (!Number.isFinite(value) || value <= 0) continue
     const multiplier = match[2] === 'juta' || match[2] === 'jt' ? 1_000_000 : 1_000
     prices.add(Math.round(value * multiplier))
   }
 
   for (const match of text.matchAll(/\brp\s*(\d{1,3}(?:[.,]\d{3})+|\d+)\b/g)) {
-    const value = Number(match[1].replace(/[.,]/g, ''))
+    const value = normalizeAmount(match[1])
+    if (Number.isFinite(value) && value > 0) prices.add(Math.round(value))
+  }
+
+  for (const match of text.matchAll(/\b(?:harga|seharga|per porsi|per unit|per buah)\s*(?:rp\s*)?(\d{1,3}(?:[.,]\d{3})+|\d+)\b/g)) {
+    const value = normalizeAmount(match[1])
     if (Number.isFinite(value) && value > 0) prices.add(Math.round(value))
   }
 
   return [...prices]
 }
-
 function containsDailyFrequencyIntent(description: string) {
   return /\b(per hari|sehari|tiap hari|setiap hari|harian|sehari-hari|perharinya)\b/i.test(description)
 }
@@ -141,6 +153,8 @@ export async function POST(request: Request) {
         quantity: Math.max(1, Math.min(10000, Math.floor(Number(value.quantity) || 1))),
         isPurchased: value.isPurchased === true,
         ...(typeof value.itemKey === 'string' ? { itemKey: value.itemKey } : {}),
+        ...(Number.isInteger(value.dailyFrequency) ? { dailyFrequency: Number(value.dailyFrequency) } : {}),
+        ...(Number.isInteger(value.periodDays) ? { periodDays: Number(value.periodDays) } : {}),
       }]
     })
 
@@ -183,7 +197,7 @@ export async function POST(request: Request) {
       'Periode rencana: ' + (period === 'daily' ? 'harian' : 'bulanan'),
       'Template: ' + (templateType ?? 'tidak dipilih'),
       'Batas budget (panduan, tidak wajib dihabiskan): ' + (budgetLimit ? `Rp ${budgetLimit.toLocaleString('id-ID')}` : 'belum ditentukan'),
-      'Daftar yang sedang ada (sumber kebenaran, jangan hilangkan item yang tidak disebut):',
+      'Daftar yang sedang ada (sumber kebenaran, jangan hilangkan item yang tidak disebut; frekuensi sebelumnya juga harus dipertahankan):',
       JSON.stringify(normalizedItems),
       'Kategori yang diperbolehkan: ' + JSON.stringify(ALLOWED_CATEGORIES),
       'Satuan yang diperbolehkan: ' + JSON.stringify(ALLOWED_UNITS),
