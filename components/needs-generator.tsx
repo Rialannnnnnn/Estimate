@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import type { Material } from '@/lib/types'
 import type { TemplateType } from '@/lib/templates'
-import { analyzeBudget, generateRecommendations, itemTotal, type DetectedContext, type Priority, type PriceObservation } from '@/lib/recommendations'
+import { analyzeBudget, itemTotal, type Priority, type PriceObservation } from '@/lib/recommendations'
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/budget'
 import { createClient } from '@/lib/supabase/client'
 import { applyNeedsChanges, type NeedsGenerationChange } from '@/lib/needs-merge'
@@ -122,6 +122,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
           description: prompt,
           period,
           templateType,
+          budgetLimit: budget,
           currentItems: items.map((item) => ({
             id: item.id,
             itemKey: item.itemKey,
