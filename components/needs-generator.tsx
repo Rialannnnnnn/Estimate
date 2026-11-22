@@ -53,6 +53,17 @@ const CATEGORY_OPTIONS = [
   'Hiburan',
   'Tabungan',
   'Lainnya',
+  'Tugas kuliah',
+  'Tugas & dokumen',
+  'Makan',
+  'Kebutuhan kerja',
+  'Tempat tinggal',
+  'Rumah tangga',
+  'Dapur',
+  'Bahan makanan',
+  'Keinginan',
+  'Liburan',
+  'Cadangan',
 ]
 
 const UNIT_OPTIONS = [
@@ -62,6 +73,8 @@ const UNIT_OPTIONS = [
   'bungkus', 'pasang', 'box', 'rim', 'jam', 'gelas', 'token', 'pouch',
   'karung 5 kg', 'ikat', 'papan', 'strip', 'orang', 'malam', 'tiket',
   'cup', 'trip', 'l', 'kilo', 'bks', 'karung', 'btr', 'potong',
+  'bungkus isi 10', 'eksemplar', 'rangkap', 'halaman', 'hal', 'lbr',
+  'alokasi', 'setoran',
 ]
 
 function splitCategoryAndUnit(value: string) {
@@ -102,6 +115,10 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
     return {
       ...item,
       ...patch,
+      ...(patch.quantity !== undefined ? {
+        dailyFrequency: undefined,
+        periodDays: undefined,
+      } : {}),
       ...(overridesPriceBasis ? {
         itemKey: undefined,
         priceSource: 'manual' as const,
@@ -116,7 +133,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
     setItems((current) => kind === 'remove'
       ? current.filter((item) => (item.id ?? item.name) !== id)
       : current.map((item) => (item.id ?? item.name) === id && newQuantity && newQuantity >= 1
-        ? { ...item, quantity: newQuantity }
+        ? { ...item, quantity: newQuantity, dailyFrequency: undefined, periodDays: undefined }
         : item))
   }
   const runGenerate = async () => {
