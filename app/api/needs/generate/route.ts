@@ -194,7 +194,7 @@ export async function POST(request: Request) {
       'Jangan mengubah batas budget pengguna. Jangan mengarang harga pasar, harga aktual, atau riwayat pembelian. Harga pribadi dan Harga Asli tidak dikirim ke model.',
       'Jika ukuran, periode, satuan, atau detail penting tidak cukup jelas untuk perhitungan yang bisa dipercaya, ajukan satu pertanyaan klarifikasi. Namun tetap buat item lain yang sudah jelas.',
       'Balas assistantMessage dengan Bahasa Indonesia yang ramah, ringkas, dan jelaskan perhitungan, asumsi, serta hal yang perlu dikonfirmasi.',
-    ].join(\'\\n\')
+    ].join('\\n')
 
     const prompt = [
       'Periode rencana: ' + (period === 'daily' ? 'harian' : 'bulanan'),
