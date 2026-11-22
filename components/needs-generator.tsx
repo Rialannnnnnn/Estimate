@@ -129,7 +129,6 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
             name: item.name,
             category: item.category,
             quantity: item.quantity,
-            unitPrice: item.unitPrice,
             isPurchased: item.isPurchased === true,
           })),
           conversation: conversation.slice(-6),
@@ -189,7 +188,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
 
       {items.length > 0 && <div className="mt-8 border-t border-border/70 pt-7">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><h3 className="font-semibold">Review item belanja</h3><p className="text-sm text-muted-foreground">Harga adalah estimasi per satuan. Kamu masih bisa mengubah semuanya.</p></div><p className="font-mono text-sm text-primary">Total estimasi {rupiah(total)}</p></div>
-        <p className="mb-4 flex items-start gap-2 rounded-2xl bg-secondary px-4 py-3 text-xs leading-relaxed text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" /><span>AI memahami instruksi dan hanya mengirim perubahan yang diminta. Item yang tidak disebut tetap dipertahankan. Harga pribadi hanya dipakai jika tersedia minimal 3 pembelian dengan nama, kategori, dan satuan yang sama dalam 12 bulan terakhir. Jika belum ada, aplikasi memakai katalog; item di luar katalog perlu diisi manual. AI tidak mengarang harga.</span></p>
+        <p className="mb-4 flex items-start gap-2 rounded-2xl bg-secondary px-4 py-3 text-xs leading-relaxed text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" /><span>AI membaca instruksi serta nama, kategori, jumlah, dan status item untuk memahami rencana. Harga pribadi dan Harga Asli tidak dikirim ke model. Item yang tidak disebut tetap dipertahankan. Harga hanya ditentukan aplikasi dari katalog atau riwayat pribadimu yang cocok; AI tidak mengarang harga.</span></p>
         <div className="space-y-3">{items.map((item, index) => {
           const isOptional = item.priority === 'optional'
           return (
