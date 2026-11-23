@@ -25,6 +25,13 @@ export type NeedsGenerationChange = {
   periodDays?: number | null
 }
 
+export type NeedsPriceEstimate = {
+  targetItemId: string
+  estimatedUnitPrice: number
+  estimatedPriceMin: number
+  estimatedPriceMax: number
+}
+
 export type MergeableNeedsItem = Material & {
   id?: string
   itemKey?: string
@@ -42,6 +49,43 @@ export type ApplyNeedsChangesOptions = {
   period: Period
   priceHistory?: PriceObservation[]
   now?: number
+}
+
+export function applyNeedsPriceEstimates(
+  currentItems: MergeableNeedsItem[],
+  estimates: NeedsPriceEstimate[],
+  { priceHistory = [], now = Date.now() }: Pick<ApplyNeedsChangesOptions, 'priceHistory' | 'now'> = {},
+): MergeableNeedsItem[] {
+  if (estimates.length === 0) return currentItems
+
+  const estimateById = new Map(estimates.map((estimate) => [estimate.targetItemId, estimate]))
+  return currentItems.map((item) => {
+    const estimate = item.id ? estimateById.get(item.id) : undefined
+    // Never replace a user-entered price, an existing catalogue price, a purchased item or an actual price.
+    if (!estimate || item.unitPrice > 0 || item.isPurchased || item.actualPrice != null) return item
+    if (!Number.isFinite(estimate.estimatedUnitPrice) || estimate.estimatedUnitPrice <= 0) return item
+
+    const personalPrice = estimatePersonalUnitPrice(item.name, item.category, priceHistory, now)
+    if (personalPrice) {
+      return {
+        ...item,
+        unitPrice: personalPrice.median,
+        priceSource: 'personal-history' as const,
+        priceSampleCount: personalPrice.sampleCount,
+        priceRangeMinimum: personalPrice.minimum,
+        priceRangeMaximum: personalPrice.maximum,
+      }
+    }
+
+    return {
+      ...item,
+      unitPrice: Math.round(estimate.estimatedUnitPrice),
+      priceSource: 'ai-estimate' as const,
+      priceSampleCount: 0,
+      priceRangeMinimum: Math.max(1, Math.min(Math.round(estimate.estimatedPriceMin), Math.round(estimate.estimatedUnitPrice))),
+      priceRangeMaximum: Math.max(Math.round(estimate.estimatedPriceMax), Math.round(estimate.estimatedUnitPrice)),
+    }
+  })
 }
 
 const normalize = (value: string) => value.toLocaleLowerCase('id').replace(/\s+/g, ' ').trim()
