@@ -46,7 +46,7 @@ const responseSchema = {
       },
     },
   },
-  required: ['assistantMessage', 'clarifyingQuestion', 'changes'],
+  required: ['assistantMessage', 'clarifyingQuestion', 'priceEstimates', 'changes'],
 } as const
 
 type CurrentItem = {
