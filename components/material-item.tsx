@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { Material } from '@/lib/types'
-import { formatCurrency, parseCurrencyInput } from '@/lib/budget'
+import { formatCurrency, formatCurrencyInput, parseCurrencyInput } from '@/lib/budget'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,7 @@ import { Trash2, Edit2, Check, X, Plus, Minus } from 'lucide-react'
 interface MaterialItemProps {
   material: Material
   index?: number
-  onUpdate: (material: Material) => void
+  onUpdate: (updates: Partial<Material>) => void
   onDelete: (id: string) => void
 }
 
@@ -22,42 +22,35 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
   const [editName, setEditName] = useState(material.name)
   const [editCategory, setEditCategory] = useState(material.category ?? '')
   const [editQuantity, setEditQuantity] = useState(material.quantity.toString())
-  const [editPrice, setEditPrice] = useState(unitPrice.toString())
+  const [editPrice, setEditPrice] = useState(formatCurrencyInput(unitPrice))
   const [actualPriceInput, setActualPriceInput] = useState(
-    material.actualPrice?.toString() ?? ''
+    material.actualPrice == null ? '' : formatCurrencyInput(material.actualPrice)
   )
 
   const handlePurchaseToggle = (checked: boolean) => {
-    onUpdate({
-      ...material,
-      isPurchased: checked,
-      actualPrice: checked ? (material.actualPrice ?? unitPrice) : null,
-    })
-    if (checked && material.actualPrice == null) {
-      setActualPriceInput(unitPrice.toString())
-    }
+    // Changing purchase status must never invent or overwrite the actual price.
+    onUpdate({ isPurchased: checked })
   }
 
   const handleActualPriceChange = (value: string) => {
-    setActualPriceInput(value)
-    const parsed = parseCurrencyInput(value)
-    onUpdate({
-      ...material,
-      actualPrice: parsed,
-    })
+    // Keep the field editable locally; save the amount when the user leaves it.
+    setActualPriceInput(formatCurrencyInput(value))
+  }
+
+  const handleActualPriceCommit = () => {
+    const trimmedValue = actualPriceInput.trim()
+    const parsed = trimmedValue ? parseCurrencyInput(trimmedValue) : null
+
+    onUpdate({ actualPrice: parsed })
   }
 
   const handleQuantityChange = (delta: number) => {
     const newQty = Math.max(1, material.quantity + delta)
-    onUpdate({
-      ...material,
-      quantity: newQty,
-    })
+    onUpdate({ quantity: newQty })
   }
 
   const handleSaveEdit = () => {
     onUpdate({
-      ...material,
       name: editName.trim() || material.name,
       category: editCategory.trim() || 'item',
       quantity: Math.max(1, Number(editQuantity) || 1),
@@ -70,12 +63,13 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
     setEditName(material.name)
     setEditCategory(material.category ?? '')
     setEditQuantity(material.quantity.toString())
-    setEditPrice(unitPrice.toString())
+    setEditPrice(formatCurrencyInput(unitPrice))
     setIsEditing(false)
   }
 
-  const totalPrice = material.isPurchased && material.actualPrice != null
-    ? material.actualPrice * material.quantity
+  const hasActualPrice = material.isPurchased && material.actualPrice != null
+  const totalPrice = hasActualPrice
+    ? (material.actualPrice as number) * material.quantity
     : unitPrice * material.quantity
 
   if (isEditing) {
@@ -104,9 +98,10 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
               className="border-2 border-border bg-transparent h-12"
             />
             <Input
-            type="number"
+            type="text"
+            inputMode="numeric"
             value={editPrice}
-            onChange={(e) => setEditPrice(e.target.value)}
+            onChange={(e) => setEditPrice(formatCurrencyInput(e.target.value))}
             placeholder="Harga estimasi"
             className="border-2 border-border bg-transparent h-12 font-mono"
             />
@@ -167,9 +162,14 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
             </div>
             
             {/* Total Price */}
-            <span className="font-mono font-bold text-base sm:text-lg text-foreground whitespace-nowrap">
-              {formatCurrency(totalPrice)}
-            </span>
+            <div className="shrink-0 text-right">
+              <span className="block font-mono font-bold text-base sm:text-lg text-foreground whitespace-nowrap">
+                {formatCurrency(totalPrice)}
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                {hasActualPrice ? 'Total aktual' : 'Total estimasi'}
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-3">
@@ -206,7 +206,13 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
                 size="sm"
                 aria-label="Ubah kebutuhan"
                 className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  setEditName(material.name)
+                  setEditCategory(material.category ?? '')
+                  setEditQuantity(material.quantity.toString())
+                  setEditPrice(formatCurrencyInput(unitPrice))
+                  setIsEditing(true)
+                }}
               >
                 <Edit2 className="w-4 h-4" />
               </Button>
@@ -225,15 +231,27 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
           {/* Actual Price Input (shown when purchased) */}
           {material.isPurchased && (
             <div className="mt-4 pt-4 border-t border-border/50 flex flex-wrap items-center gap-3">
-              <span className="text-label text-muted-foreground">Harga Asli</span>
-              <Input
-                type="number"
-                inputMode="numeric"
-                value={actualPriceInput}
-                onChange={(e) => handleActualPriceChange(e.target.value)}
-                className="w-36 h-9 text-sm border-2 border-success bg-transparent font-mono"
-                placeholder="Harga asli"
-              />
+              <div className="flex w-full flex-wrap items-center gap-3">
+                <label htmlFor={`actual-price-${material.id}`} className="text-label text-muted-foreground">
+                  Harga Asli per Unit
+                </label>
+                <Input
+                  id={`actual-price-${material.id}`}
+                  type="text"
+                  inputMode="numeric"
+                  value={actualPriceInput}
+                  onChange={(e) => handleActualPriceChange(e.target.value)}
+                  onBlur={handleActualPriceCommit}
+                  className="w-40 h-9 text-sm border-2 border-success bg-transparent font-mono"
+                  placeholder="Isi harga yang dibayar"
+                  aria-describedby={`actual-price-hint-${material.id}`}
+                />
+                <p id={`actual-price-hint-${material.id}`} className="w-full text-xs text-muted-foreground">
+                  {hasActualPrice
+                    ? 'Harga aktual tersimpan. Ubah jika nominal pembayaran berbeda.'
+                    : 'Masukkan harga yang benar-benar dibayar. Estimasi tidak otomatis dianggap sebagai pengeluaran.'}
+                </p>
+              </div>
             </div>
           )}
         </div>

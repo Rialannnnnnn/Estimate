@@ -16,6 +16,7 @@ import { ArrowRight, LogOut, Plus, Search } from 'lucide-react'
 import type { Material } from '@/lib/types'
 import type { TemplateType } from '@/lib/templates'
 import { templates } from '@/lib/templates'
+import { formatCurrencyInput, parseCurrencyInput } from '@/lib/budget'
 
 interface Project {
   id: string
@@ -90,7 +91,7 @@ export default function DashboardPage() {
 
   setCreatingProject(true)
     const templateData = templates[selectedTemplate]
-    const plannedBudget = Number(budgetLimit) > 0 ? Number(budgetLimit) : templateData.budget
+    const plannedBudget = parseCurrencyInput(budgetLimit) > 0 ? parseCurrencyInput(budgetLimit) : templateData.budget
 
     try {
       const { data, error } = await supabase
@@ -250,8 +251,8 @@ export default function DashboardPage() {
               <NeedsGenerator
                 period={planningPeriod}
                 templateType={selectedTemplate}
-                budgetLimit={Number(budgetLimit) > 0 ? Number(budgetLimit) : selectedTemplate ? templates[selectedTemplate].budget : null}
-                isExampleBudget={!(Number(budgetLimit) > 0)}
+                budgetLimit={parseCurrencyInput(budgetLimit) > 0 ? parseCurrencyInput(budgetLimit) : selectedTemplate ? templates[selectedTemplate].budget : null}
+                isExampleBudget={!(parseCurrencyInput(budgetLimit) > 0)}
                 initialCriteria={criteria}
                 initialItems={generatedNeeds}
                 onConfirm={(items) => {
@@ -276,7 +277,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <label htmlFor="budget-limit" className="text-label block mb-2">Batas budget kamu (opsional)</label>
-                <Input id="budget-limit" type="number" min="0" value={budgetLimit} onChange={(e) => setBudgetLimit(e.target.value)} placeholder={planningPeriod === 'daily' ? 'Contoh: 75000' : 'Contoh: 2500000'} className="h-12 rounded-xl border border-border bg-background text-foreground" />
+                <Input id="budget-limit" type="text" inputMode="numeric" value={budgetLimit} onChange={(e) => setBudgetLimit(formatCurrencyInput(e.target.value))} placeholder={planningPeriod === 'daily' ? 'Contoh: 75.000' : 'Contoh: 2.500.000'} className="h-12 rounded-xl border border-border bg-background text-foreground" />
                 <p className="mt-2 text-xs text-muted-foreground">Kosongkan untuk memakai contoh anggaran dari template. Angka ini bebas diubah dan tidak harus dihabiskan.</p>
               </div>
               <div>

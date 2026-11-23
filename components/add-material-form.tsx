@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Plus, X } from 'lucide-react'
 import { generateId } from '@/lib/storage'
-import { parseCurrencyInput } from '@/lib/budget'
+import { formatCurrencyInput, parseCurrencyInput } from '@/lib/budget'
 import type { Material } from '@/lib/types'
 
 interface AddMaterialFormProps {
@@ -92,11 +92,11 @@ export function AddMaterialForm({ onAdd }: AddMaterialFormProps) {
           </Label>
           <Input
             id="material-price"
-            type="number"
+            type="text"
             inputMode="numeric"
             value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="25000"
+            onChange={(e) => setPrice(formatCurrencyInput(e.target.value))}
+            placeholder="25.000"
             className="border-2 border-border bg-transparent h-12 font-mono"
           />
         </div>
