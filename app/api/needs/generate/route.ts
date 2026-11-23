@@ -393,11 +393,15 @@ export async function POST(request: Request) {
         : null
       const rawEstimatedPriceMin = Number(value.estimatedPriceMin)
       const rawEstimatedPriceMax = Number(value.estimatedPriceMax)
-      const estimatedPriceMin = estimatedUnitPrice && Number.isFinite(rawEstimatedPriceMin) && rawEstimatedPriceMin > 0
-        ? Math.min(estimatedUnitPrice, Math.round(rawEstimatedPriceMin))
+      const estimatedPriceMin = estimatedUnitPrice
+        ? Number.isFinite(rawEstimatedPriceMin) && rawEstimatedPriceMin > 0
+          ? Math.min(estimatedUnitPrice, Math.round(rawEstimatedPriceMin))
+          : Math.max(1, Math.round(estimatedUnitPrice * 0.8))
         : null
-      const estimatedPriceMax = estimatedUnitPrice && Number.isFinite(rawEstimatedPriceMax) && rawEstimatedPriceMax > 0 && rawEstimatedPriceMax <= 1_000_000_000
-        ? Math.max(estimatedUnitPrice, Math.round(rawEstimatedPriceMax))
+      const estimatedPriceMax = estimatedUnitPrice
+        ? Number.isFinite(rawEstimatedPriceMax) && rawEstimatedPriceMax > 0 && rawEstimatedPriceMax <= 1_000_000_000
+          ? Math.max(estimatedUnitPrice, Math.round(rawEstimatedPriceMax))
+          : Math.round(estimatedUnitPrice * 1.2)
         : null
       const dailyFrequency = Number.isInteger(Number(value.dailyFrequency)) && Number(value.dailyFrequency) >= 1
         ? Math.min(24, Number(value.dailyFrequency))
