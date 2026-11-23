@@ -112,7 +112,7 @@ test('unknown catalog unit is not silently priced using another unit', () => {
   assert.equal(result.length, 0)
 })
 
-test('custom item is added without an invented price', () => {
+test('custom item without a valid AI estimate remains clearly unpriced as a safe fallback', () => {
   const custom: NeedsGenerationChange = {
     action: 'add',
     itemKey: 'custom',
@@ -128,9 +128,69 @@ test('custom item is added without an invented price', () => {
   const item = result.find((entry) => entry.name === 'Buah naga')
   assert.ok(item)
   assert.equal(item.unitPrice, 0)
-  assert.equal(item.priceSource, 'manual')
+  assert.equal(item.priceSource, 'unpriced')
 })
 
+test('custom item receives an editable average AI unit-price estimate and range', () => {
+  const custom: NeedsGenerationChange = {
+    action: 'add', itemKey: 'custom', targetItemId: null,
+    name: 'Gunting', category: 'Alat & Bahan', unit: 'pcs',
+    quantity: 1, priority: 'essential',
+    estimatedUnitPrice: 10000, estimatedPriceMin: 8000, estimatedPriceMax: 15000,
+  }
+  const result = applyNeedsChanges([], [custom], { period: 'monthly', now })
+  assert.equal(result.length, 1)
+  assert.equal(result[0].unitPrice, 10000)
+  assert.equal(result[0].priceSource, 'ai-estimate')
+  assert.equal(result[0].priceRangeMinimum, 8000)
+  assert.equal(result[0].priceRangeMaximum, 15000)
+  assert.equal(result[0].actualPrice, null)
+  assert.equal(result[0].isPurchased, false)
+})
+
+test('explicit user price overrides the AI estimate', () => {
+  const custom: NeedsGenerationChange = {
+    action: 'add', itemKey: 'custom', targetItemId: null,
+    name: 'Gunting', category: 'Alat & Bahan', unit: 'pcs',
+    quantity: 1, priority: 'essential', userProvidedUnitPrice: 12000,
+    estimatedUnitPrice: 10000, estimatedPriceMin: 8000, estimatedPriceMax: 15000,
+  }
+  const result = applyNeedsChanges([], [custom], { period: 'monthly', now })
+  assert.equal(result[0].unitPrice, 12000)
+  assert.equal(result[0].priceSource, 'manual')
+  assert.equal(result[0].priceRangeMinimum, undefined)
+})
+
+test('catalog item uses AI estimate when personal history is unavailable', () => {
+  const result = applyNeedsChanges([], [{
+    ...addEggs, estimatedUnitPrice: 35000,
+    estimatedPriceMin: 30000, estimatedPriceMax: 42000,
+  }], { period: 'monthly', now })
+  const eggs = result.find((item) => item.itemKey === 'telur')
+  assert.ok(eggs)
+  assert.equal(eggs.unitPrice, 35000)
+  assert.equal(eggs.priceSource, 'ai-estimate')
+  assert.equal(eggs.priceRangeMinimum, 30000)
+  assert.equal(eggs.priceRangeMaximum, 42000)
+})
+
+test('personal purchase history has priority over an AI estimate', () => {
+  const result = applyNeedsChanges([], [{
+    ...addEggs, estimatedUnitPrice: 35000,
+    estimatedPriceMin: 30000, estimatedPriceMax: 42000,
+  }], {
+    period: 'monthly', now,
+    priceHistory: [
+      { name: 'Telur ayam', category: 'Bahan makanan · kg', actualPrice: 32000, recordedAt: '2026-10-01T00:00:00.000Z' },
+      { name: 'Telur ayam', category: 'Bahan makanan · kg', actualPrice: 34000, recordedAt: '2026-10-02T00:00:00.000Z' },
+      { name: 'Telur ayam', category: 'Bahan makanan · kg', actualPrice: 36000, recordedAt: '2026-10-03T00:00:00.000Z' },
+    ],
+  })
+  const eggs = result.find((item) => item.itemKey === 'telur')
+  assert.ok(eggs)
+  assert.equal(eggs.unitPrice, 34000)
+  assert.equal(eggs.priceSource, 'personal-history')
+})
 
 test('recurrent meal uses the stated frequency, days and unit price', () => {
   const meal: NeedsGenerationChange = {
