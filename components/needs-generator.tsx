@@ -10,7 +10,7 @@ import type { TemplateType } from '@/lib/templates'
 import { analyzeBudget, itemTotal, type Priority, type PriceObservation } from '@/lib/recommendations'
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/budget'
 import { createClient } from '@/lib/supabase/client'
-import { applyNeedsChanges, type NeedsGenerationChange } from '@/lib/needs-merge'
+import { applyNeedsChanges, applyNeedsPriceEstimates, type NeedsGenerationChange, type NeedsPriceEstimate } from '@/lib/needs-merge'
 
 type Props = {
   period: 'daily' | 'monthly'
@@ -192,6 +192,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
             category: item.category,
             quantity: item.quantity,
             isPurchased: item.isPurchased === true,
+            hasUnitPrice: item.unitPrice > 0,
             dailyFrequency: item.dailyFrequency ?? null,
             periodDays: item.periodDays ?? null,
           })),
@@ -215,15 +216,27 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
       }
 
       const changes = Array.isArray(payload.changes) ? payload.changes as NeedsGenerationChange[] : []
-      const nextItems = applyNeedsChanges(items, changes, {
+      const mergedItems = applyNeedsChanges(items, changes, {
         period,
+        priceHistory,
+        now: now.getTime(),
+      })
+      const priceEstimates = Array.isArray(payload.priceEstimates)
+        ? payload.priceEstimates as NeedsPriceEstimate[]
+        : []
+      const nextItems = applyNeedsPriceEstimates(mergedItems, priceEstimates, {
         priceHistory,
         now: now.getTime(),
       })
 
       setItems(nextItems)
+      const rawAssistantMessage = typeof payload.assistantMessage === 'string' ? payload.assistantMessage.trim() : ''
+      const priceCount = (rawAssistantMessage.match(/\bRp\s?/gi) ?? []).length
+      const conciseAssistantMessage = rawAssistantMessage.length > 220 || priceCount > 2
+        ? 'Daftar kebutuhan sudah diperbarui. Estimasi harga sudah dimasukkan langsung ke kolom masing-masing item dan bisa kamu ubah kapan saja.'
+        : rawAssistantMessage || 'Instruksi sudah diproses.'
       const reply = [
-        typeof payload.assistantMessage === 'string' ? payload.assistantMessage : 'Instruksi sudah diproses.',
+        conciseAssistantMessage,
         typeof payload.clarifyingQuestion === 'string' ? payload.clarifyingQuestion : '',
       ].filter(Boolean).join(' ')
       setAssistantMessage(reply)
