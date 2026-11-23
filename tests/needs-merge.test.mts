@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { applyNeedsChanges, type MergeableNeedsItem, type NeedsGenerationChange } from '../lib/needs-merge.ts'
+import { applyNeedsChanges, applyNeedsPriceEstimates, type MergeableNeedsItem, type NeedsGenerationChange } from '../lib/needs-merge.ts'
 
 const now = new Date('2026-11-23T00:00:00.000Z').getTime()
 
@@ -42,7 +42,7 @@ const addEggs: NeedsGenerationChange = {
   priority: 'essential',
 }
 
-test('adding a new item keeps every existing item intact', () => {
+test('AI estimate is applied directly to a matching existing unpriced item', () => {\n  const unpriced: MergeableNeedsItem[] = [{\n    id: 'scissors-1', name: 'Gunting', category: 'Kuliah & Tugas · pcs',\n    quantity: 1, unitPrice: 0, actualPrice: null, isPurchased: false,\n    priceSource: 'unpriced', priority: 'essential',\n  }]\n  const result = applyNeedsPriceEstimates(unpriced, [{\n    targetItemId: 'scissors-1', estimatedUnitPrice: 15000,\n    estimatedPriceMin: 10000, estimatedPriceMax: 25000,\n  }], { now })\n  assert.equal(result[0].unitPrice, 15000)\n  assert.equal(result[0].priceSource, 'ai-estimate')\n  assert.equal(result[0].priceRangeMinimum, 10000)\n  assert.equal(result[0].priceRangeMaximum, 25000)\n  assert.equal(result[0].actualPrice, null)\n  assert.equal(result[0].isPurchased, false)\n})\n\ntest('AI estimate never overwrites an existing price or a purchased item', () => {\n  const rows: MergeableNeedsItem[] = [\n    { id: 'manual-1', name: 'Tas', category: 'Kuliah & Tugas · pcs', quantity: 1, unitPrice: 200000, actualPrice: null, isPurchased: false, priceSource: 'manual' },\n    { id: 'bought-1', name: 'Buku', category: 'Kuliah & Tugas · pcs', quantity: 1, unitPrice: 0, actualPrice: 18000, isPurchased: true },\n  ]\n  const result = applyNeedsPriceEstimates(rows, [\n    { targetItemId: 'manual-1', estimatedUnitPrice: 100000, estimatedPriceMin: 80000, estimatedPriceMax: 120000 },\n    { targetItemId: 'bought-1', estimatedUnitPrice: 20000, estimatedPriceMin: 15000, estimatedPriceMax: 25000 },\n  ], { now })\n  assert.equal(result[0].unitPrice, 200000)\n  assert.equal(result[0].priceSource, 'manual')\n  assert.equal(result[1].unitPrice, 0)\n  assert.equal(result[1].isPurchased, true)\n})\n\ntest('adding a new item keeps every existing item intact', () => {
   const result = applyNeedsChanges(existing, [addEggs], { period: 'monthly', now })
   assert.equal(result.length, 3)
   assert.deepEqual(result.slice(0, 2), existing.map((item, index) => ({ ...item, id: item.id ?? `existing-${index}-${now}` })))
