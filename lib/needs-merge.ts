@@ -1,6 +1,7 @@
 import type { Material } from './types.ts'
 import {
   createCatalogRecommendation,
+  estimatePersonalUnitPrice,
   ITEMS,
   type Period,
   type PriceObservation,
@@ -76,14 +77,23 @@ function sameIdentity(a: MergeableNeedsItem, b: MergeableNeedsItem) {
     && sameUnit
 }
 
-function createCustomItem(change: NeedsGenerationChange, now: number): MergeableNeedsItem {
+function createCustomItem(change: NeedsGenerationChange, now: number, priceHistory: PriceObservation[]): MergeableNeedsItem {
+  const personalPrice = estimatePersonalUnitPrice(
+    change.name,
+    `${change.category} · ${change.unit}`,
+    priceHistory,
+    now,
+  )
   const hasUserPrice = change.userProvidedUnitPrice != null && change.userProvidedUnitPrice > 0
-  const hasAiEstimate = !hasUserPrice && change.estimatedUnitPrice != null && change.estimatedUnitPrice > 0
+  const hasPersonalPrice = !hasUserPrice && personalPrice != null
+  const hasAiEstimate = !hasUserPrice && !hasPersonalPrice && change.estimatedUnitPrice != null && change.estimatedUnitPrice > 0
   const unitPrice = hasUserPrice
     ? change.userProvidedUnitPrice!
-    : hasAiEstimate
-      ? change.estimatedUnitPrice!
-      : 0
+    : hasPersonalPrice
+      ? personalPrice!.median
+      : hasAiEstimate
+        ? change.estimatedUnitPrice!
+        : 0
 
   return {
     id: `custom-${now}-${Math.random().toString(36).slice(2, 8)}`,
@@ -95,9 +105,12 @@ function createCustomItem(change: NeedsGenerationChange, now: number): Mergeable
     isPurchased: false,
     priority: change.priority,
     reason: 'ditambahkan berdasarkan instruksi',
-    priceSource: hasUserPrice ? 'manual' : hasAiEstimate ? 'ai-estimate' : 'unpriced',
-    priceSampleCount: 0,
-    ...(hasAiEstimate ? {
+    priceSource: hasUserPrice ? 'manual' : hasPersonalPrice ? 'personal-history' : hasAiEstimate ? 'ai-estimate' : 'unpriced',
+    priceSampleCount: personalPrice?.sampleCount ?? 0,
+    ...(hasPersonalPrice ? {
+      priceRangeMinimum: personalPrice!.minimum,
+      priceRangeMaximum: personalPrice!.maximum,
+    } : hasAiEstimate ? {
       priceRangeMinimum: change.estimatedPriceMin ?? undefined,
       priceRangeMaximum: change.estimatedPriceMax ?? undefined,
     } : {}),
@@ -235,7 +248,7 @@ export function applyNeedsChanges(
             periodDays: change.periodDays,
           } : {}),
         }
-      : createCustomItem(change, now)
+      : createCustomItem(change, now, priceHistory)
     const existingIndex = next.findIndex((item) => sameIdentity(item, newItem) && !item.isPurchased)
 
     if (existingIndex >= 0) {
