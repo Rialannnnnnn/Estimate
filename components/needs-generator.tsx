@@ -27,7 +27,7 @@ type Props = {
 type ReviewItem = Material & {
   priority?: Priority
   reason?: string
-  priceSource?: 'personal-history' | 'catalogue' | 'manual'
+  priceSource?: 'personal-history' | 'catalogue' | 'manual' | 'ai-estimate' | 'unpriced'
   priceSampleCount?: number
   priceRangeMinimum?: number
   priceRangeMaximum?: number
@@ -129,7 +129,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
       } : {}),
     }
   }))
-  const addItem = () => setItems((current) => [...current, { id: `custom-${Date.now()}`, name: 'Kebutuhan baru', category: 'Lainnya · pcs', quantity: 1, unitPrice: 0, actualPrice: null, isPurchased: false, priority: 'essential', reason: 'ditambahkan manual', priceSource: 'manual', priceSampleCount: 0, itemKey: undefined }])
+  const addItem = () => setItems((current) => [...current, { id: `custom-${Date.now()}`, name: 'Kebutuhan baru', category: 'Lainnya · pcs', quantity: 1, unitPrice: 0, actualPrice: null, isPurchased: false, priority: 'essential', reason: 'ditambahkan manual', priceSource: 'unpriced', priceSampleCount: 0, itemKey: undefined }])
   const applySuggestion = (id: string, kind: 'remove' | 'reduce', newQuantity?: number) => {
     setItems((current) => kind === 'remove'
       ? current.filter((item) => (item.id ?? item.name) !== id)
@@ -174,7 +174,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
           }))
       } catch (historyError) {
         console.error('Failed to load personal price history:', historyError)
-        historyWarning = 'Riwayat harga pribadi belum dapat dimuat; item baru memakai katalog estimasi.'
+        historyWarning = 'Riwayat harga pribadi belum dapat dimuat; item baru tetap memakai estimasi AI atau katalog.'
       }
 
       const response = await fetch('/api/needs/generate', {
@@ -233,10 +233,15 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
       setCriteria('')
 
       const personalCount = nextItems.filter((item) => item.priceSource === 'personal-history').length
+      const aiEstimateCount = nextItems.filter((item) => item.priceSource === 'ai-estimate').length
+      const unpricedCount = nextItems.filter((item) => item.priceSource === 'unpriced' || item.unitPrice <= 0).length
       setPriceHistoryNotice(
-        historyWarning || (personalCount > 0
-          ? `${personalCount} item memakai median dari riwayat pembelian pribadimu. Harga lainnya berasal dari katalog atau input manual.`
-          : 'Harga item baru berasal dari katalog estimasi atau perlu kamu isi manual. AI tidak mengarang harga.')
+        historyWarning || [
+          personalCount > 0 ? `${personalCount} item memakai median dari riwayat pembelian pribadimu.` : '',
+          aiEstimateCount > 0 ? `${aiEstimateCount} item memakai estimasi rata-rata AI.` : '',
+          unpricedCount > 0 ? `${unpricedCount} item belum memiliki estimasi dan perlu dilengkapi manual.` : '',
+          'Harga AI adalah perkiraan umum, bukan harga toko real-time, dan bisa kamu ubah.',
+        ].filter(Boolean).join(' ')
       )
     } catch (error) {
       console.error('AI needs generation failed:', error)
@@ -274,7 +279,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
 
       {items.length > 0 && <div className="mt-8 border-t border-border/70 pt-7">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><h3 className="font-semibold">Review item belanja</h3><p className="text-sm text-muted-foreground">Harga adalah estimasi per satuan. Kamu masih bisa mengubah semuanya.</p></div><p className="font-mono text-sm text-primary">Total estimasi {rupiah(total)}</p></div>
-        <p className="mb-4 flex items-start gap-2 rounded-2xl bg-secondary px-4 py-3 text-xs leading-relaxed text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" /><span>AI EstiMate memakai Google Gemini untuk memahami instruksi dan daftar kebutuhan. Nama item, kategori, jumlah, dan percakapan dikirim ke Google untuk diproses; Harga Asli dan riwayat harga pribadi tidak dikirim. Pada Free tier, Google dapat menggunakan konten yang dikirim untuk meningkatkan produknya. Item yang tidak disebut tetap dipertahankan. Harga ditentukan aplikasi, bukan dikarang AI.</span></p>
+        <p className="mb-4 flex items-start gap-2 rounded-2xl bg-secondary px-4 py-3 text-xs leading-relaxed text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" /><span>AI EstiMate memakai Google Gemini untuk memahami instruksi dan memperkirakan harga. Nama item, kategori, jumlah, dan percakapan dikirim ke Google untuk diproses; Harga Asli dan riwayat harga pribadi tidak dikirim. Pada Free tier, Google dapat menggunakan konten yang dikirim untuk meningkatkan produknya. Item yang tidak disebut tetap dipertahankan. Estimasi AI adalah perkiraan umum Indonesia, bukan harga toko real-time; kamu bisa mengubahnya kapan saja.</span></p>
         <div className="space-y-3">{items.map((item, index) => {
           const isOptional = item.priority === 'optional'
           return (
@@ -305,9 +310,13 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
                 {item.dailyFrequency && item.periodDays && <span className="rounded-full border border-primary/20 bg-secondary px-2 py-0.5 text-primary">{item.dailyFrequency} kali/hari × {item.periodDays} hari = {item.quantity} {splitCategoryAndUnit(item.category).unit}</span>}
                 {item.priceSource === 'personal-history' && item.priceRangeMinimum != null && item.priceRangeMaximum != null
                   ? <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-primary">Riwayat pribadi · {item.priceSampleCount} catatan · rentang {rupiah(item.priceRangeMinimum)}–{rupiah(item.priceRangeMaximum)}</span>
-                  : item.priceSource === 'manual'
-                    ? <span className="rounded-full border border-border px-2 py-0.5">Diubah manual</span>
-                    : <span className="rounded-full border border-border px-2 py-0.5">Katalog estimasi</span>}
+                  : item.priceSource === 'ai-estimate'
+                    ? <span className="rounded-full border border-primary/20 bg-secondary px-2 py-0.5 text-primary">Estimasi AI{item.priceRangeMinimum != null && item.priceRangeMaximum != null ? ` · ${rupiah(item.priceRangeMinimum)}–${rupiah(item.priceRangeMaximum)}` : ''}</span>
+                    : item.priceSource === 'manual'
+                      ? <span className="rounded-full border border-border px-2 py-0.5">Diubah manual</span>
+                      : item.priceSource === 'unpriced'
+                        ? <span className="rounded-full border border-border px-2 py-0.5">Belum ada harga</span>
+                        : <span className="rounded-full border border-border px-2 py-0.5">Katalog estimasi</span>}
                 {item.reason && <span>· {item.reason}</span>}
               </div>
             </div>
