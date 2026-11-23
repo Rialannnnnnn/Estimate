@@ -9,6 +9,19 @@ const responseSchema = {
   properties: {
     assistantMessage: { type: 'string' },
     clarifyingQuestion: { type: 'string' },
+    priceEstimates: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          targetItemId: { type: 'string' },
+          estimatedUnitPrice: { type: 'number' },
+          estimatedPriceMin: { type: 'number' },
+          estimatedPriceMax: { type: 'number' },
+        },
+        required: ['targetItemId', 'estimatedUnitPrice', 'estimatedPriceMin', 'estimatedPriceMax'],
+      },
+    },
     changes: {
       type: 'array',
       items: {
@@ -42,6 +55,7 @@ type CurrentItem = {
   category: string
   quantity: number
   isPurchased: boolean
+  hasUnitPrice: boolean
   itemKey?: string
   dailyFrequency?: number
   periodDays?: number
@@ -195,6 +209,7 @@ export async function POST(request: Request) {
         id, name, category,
         quantity: Math.max(1, Math.min(10000, Math.floor(Number(value.quantity) || 1))),
         isPurchased: value.isPurchased === true,
+        hasUnitPrice: value.hasUnitPrice === true,
         ...(typeof value.itemKey === 'string' ? { itemKey: value.itemKey } : {}),
         ...(Number.isInteger(value.dailyFrequency) ? { dailyFrequency: Number(value.dailyFrequency) } : {}),
         ...(Number.isInteger(value.periodDays) ? { periodDays: Number(value.periodDays) } : {}),
@@ -226,6 +241,7 @@ export async function POST(request: Request) {
       'Jika pesan berisi pertanyaan umum atau obrolan tanpa perubahan daftar, jawab dengan assistantMessage seperti asisten percakapan biasa dan kembalikan changes kosong. Jangan memaksakan item baru untuk setiap pesan.',
       'DAFTAR LAMA ADALAH SUMBER KEBENARAN. Jangan pernah mengganti daftar penuh. Keluarkan hanya operasi add, update, atau remove yang diperlukan.',
       'Jika pengguna hanya menambah konteks atau barang baru, gunakan add hanya untuk item baru dan pertahankan semua item yang tidak disebut. Jangan mengubah atau menghapus item lama secara implisit.',
+      'Selain changes, gunakan priceEstimates untuk mengisi harga item yang SUDAH ADA di daftar apabila hasUnitPrice=false dan isPurchased=false. Kembalikan satu objek untuk setiap item seperti itu yang masih memiliki harga 0/kosong, targetItemId harus sama persis dengan id item yang diberikan. Jangan membuat add/update untuk sekadar mengisi harga. Jangan kirim estimasi untuk item yang hasUnitPrice=true atau isPurchased=true. Gunakan harga per satuan dan rentang wajar di Indonesia.',
       'Bandingkan setiap ide dengan daftar yang sedang ada. Jika barang yang sama, jumlah dan konteksnya sudah ada, jangan tambahkan duplikat dan jangan menambah jumlah hanya karena pengguna mengulangi cerita. Tambah kuantitas hanya bila pengguna jelas berkata tambah lagi/ditambah sekian. Jika pengguna menyebut nilai baru sebagai pengganti, gunakan update ke jumlah akhir yang dimaksud.',
       'Gunakan update hanya bila pengguna jelas meminta mengubah jumlah, harga, kategori, atau satuan item yang sudah ada; targetItemId wajib tepat.',
       'Gunakan remove hanya jika pengguna jelas meminta menghapus item tertentu atau mengosongkan daftar. Jangan tafsirkan kalimat negatif seperti "jangan dihapus" sebagai izin hapus.',
@@ -244,6 +260,7 @@ export async function POST(request: Request) {
       'Prioritaskan itemKey katalog jika benar-benar cocok; selain itu gunakan itemKey "custom". Jangan memaksakan item ke kategori katalog yang tidak sesuai.',
       'Untuk item katalog, nama, kategori dan satuan harus sesuai katalog. Untuk item custom, kategori dan satuan harus dipilih dari pilihan yang tersedia.',
       'Agar JSON valid: field targetItemId isi string kosong "" untuk item baru; untuk update/remove isi ID target yang persis. Field userProvidedUnitPrice isi 0 bila pengguna tidak menyebut harga. Untuk item add tanpa harga eksplisit, estimatedUnitPrice, estimatedPriceMin, dan estimatedPriceMax wajib berisi angka Rupiah per satuan yang lebih besar dari 0. Untuk harga eksplisit atau action selain add, isi ketiganya 0. dailyFrequency dan periodDays isi 0 bila bukan kebutuhan berulang; clarifyingQuestion isi string kosong bila tidak perlu bertanya.',
+      'assistantMessage harus ringkas, maksimal 2 kalimat. Jangan menggabungkan daftar panjang harga, angka, atau penomoran item ke dalam assistantMessage karena rincian harga akan tampil pada masing-masing baris item di daftar review.',
       'Jangan mengubah batas budget pengguna. Jangan menyatakan estimasi AI sebagai harga aktual, harga toko real-time, atau data hasil survei. Harga pribadi dan Harga Asli tidak dikirim ke model.',
       'Jika ukuran, periode, satuan, atau detail penting tidak cukup jelas untuk perhitungan yang bisa dipercaya, ajukan satu pertanyaan klarifikasi. Namun tetap buat item lain yang sudah jelas.',
       'Balas assistantMessage dengan Bahasa Indonesia yang ramah, ringkas, dan jelaskan perhitungan, asumsi, serta hal yang perlu dikonfirmasi.',
@@ -360,12 +377,34 @@ export async function POST(request: Request) {
     }
 
     if (!isRecord(parsed) || !Array.isArray(parsed.changes)
+      || !Array.isArray(parsed.priceEstimates)
       || typeof parsed.assistantMessage !== 'string'
       || typeof parsed.clarifyingQuestion !== 'string') {
       return NextResponse.json({ error: 'Struktur jawaban Gemini tidak sesuai. Daftar kamu tetap aman.' }, { status: 502 })
     }
 
     const existingIds = new Set(normalizedItems.map((item) => item.id))
+    const existingItemsById = new Map(normalizedItems.map((item) => [item.id, item]))
+    const priceEstimates = parsed.priceEstimates.slice(0, 100).flatMap((value) => {
+      if (!isRecord(value) || typeof value.targetItemId !== 'string') return []
+      const targetItemId = value.targetItemId.trim()
+      const target = existingItemsById.get(targetItemId)
+      const estimatedUnitPrice = Number(value.estimatedUnitPrice)
+      if (!target || target.hasUnitPrice || target.isPurchased
+        || !Number.isFinite(estimatedUnitPrice) || estimatedUnitPrice <= 0 || estimatedUnitPrice > 1_000_000_000) return []
+      const rawMin = Number(value.estimatedPriceMin)
+      const rawMax = Number(value.estimatedPriceMax)
+      return [{
+        targetItemId,
+        estimatedUnitPrice: Math.round(estimatedUnitPrice),
+        estimatedPriceMin: Number.isFinite(rawMin) && rawMin > 0
+          ? Math.min(Math.round(rawMin), Math.round(estimatedUnitPrice))
+          : Math.max(1, Math.round(estimatedUnitPrice * 0.8)),
+        estimatedPriceMax: Number.isFinite(rawMax) && rawMax >= estimatedUnitPrice && rawMax <= 1_000_000_000
+          ? Math.round(rawMax)
+          : Math.round(estimatedUnitPrice * 1.2),
+      }]
+    })
     const canBulkReset = isExplicitBulkReset(description)
     const canRemove = mayRemoveItems(description) || canBulkReset
     const changes = parsed.changes.slice(0, 40).flatMap((value) => {
@@ -443,6 +482,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       assistantMessage: parsed.assistantMessage.slice(0, 600),
       clarifyingQuestion: parsed.clarifyingQuestion.slice(0, 300) || null,
+      priceEstimates,
       changes,
       mode: normalizedItems.length ? 'incremental' : 'initial',
       allowBulkReset: canBulkReset,
