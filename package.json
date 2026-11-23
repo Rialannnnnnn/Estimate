@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "test:recommendations": "node --test --experimental-strip-types tests/recommendations.test.mts",
-    "test:budget": "node --test --experimental-strip-types tests/budget.test.mts"
+    "test:budget": "node --test --experimental-strip-types tests/budget.test.mts",
+    "test:needs-merge": "node --test --experimental-strip-types tests/needs-merge.test.mts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
