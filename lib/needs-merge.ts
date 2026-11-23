@@ -17,6 +17,9 @@ export type NeedsGenerationChange = {
   quantity: number
   priority: Priority
   userProvidedUnitPrice?: number | null
+  estimatedUnitPrice?: number | null
+  estimatedPriceMin?: number | null
+  estimatedPriceMax?: number | null
   dailyFrequency?: number | null
   periodDays?: number | null
 }
@@ -26,7 +29,7 @@ export type MergeableNeedsItem = Material & {
   itemKey?: string
   priority?: Priority
   reason?: string
-  priceSource?: 'personal-history' | 'catalogue' | 'manual'
+  priceSource?: 'personal-history' | 'catalogue' | 'manual' | 'ai-estimate' | 'unpriced'
   priceSampleCount?: number
   priceRangeMinimum?: number
   priceRangeMaximum?: number
@@ -74,18 +77,30 @@ function sameIdentity(a: MergeableNeedsItem, b: MergeableNeedsItem) {
 }
 
 function createCustomItem(change: NeedsGenerationChange, now: number): MergeableNeedsItem {
+  const hasUserPrice = change.userProvidedUnitPrice != null && change.userProvidedUnitPrice > 0
+  const hasAiEstimate = !hasUserPrice && change.estimatedUnitPrice != null && change.estimatedUnitPrice > 0
+  const unitPrice = hasUserPrice
+    ? change.userProvidedUnitPrice!
+    : hasAiEstimate
+      ? change.estimatedUnitPrice!
+      : 0
+
   return {
     id: `custom-${now}-${Math.random().toString(36).slice(2, 8)}`,
     name: change.name,
     category: `${change.category} · ${change.unit}`,
     quantity: Math.max(1, Math.min(10000, Math.floor(change.quantity))),
-    unitPrice: change.userProvidedUnitPrice ?? 0,
+    unitPrice,
     actualPrice: null,
     isPurchased: false,
     priority: change.priority,
     reason: 'ditambahkan berdasarkan instruksi',
-    priceSource: 'manual',
+    priceSource: hasUserPrice ? 'manual' : hasAiEstimate ? 'ai-estimate' : 'unpriced',
     priceSampleCount: 0,
+    ...(hasAiEstimate ? {
+      priceRangeMinimum: change.estimatedPriceMin ?? undefined,
+      priceRangeMaximum: change.estimatedPriceMax ?? undefined,
+    } : {}),
     ...(change.dailyFrequency && change.periodDays ? {
       dailyFrequency: change.dailyFrequency,
       periodDays: change.periodDays,
@@ -144,13 +159,15 @@ export function applyNeedsChanges(
           name: recommendation.name,
           category: recommendation.category,
           quantity: recommendation.quantity,
-          unitPrice: current.priceSource === 'manual' && !unitChanged
-            ? current.unitPrice
-            : recommendation.unitPrice,
+          unitPrice: change.userProvidedUnitPrice != null && change.userProvidedUnitPrice > 0
+            ? change.userProvidedUnitPrice
+            : !unitChanged && current.unitPrice > 0
+              ? current.unitPrice
+              : recommendation.unitPrice,
           actualPrice: unitChanged ? null : current.actualPrice ?? null,
           isPurchased: unitChanged ? false : current.isPurchased ?? false,
           priority: change.priority,
-          ...(change.userProvidedUnitPrice != null ? {
+          ...(change.userProvidedUnitPrice != null && change.userProvidedUnitPrice > 0 ? {
             unitPrice: change.userProvidedUnitPrice,
             priceSource: 'manual' as const,
             priceSampleCount: 0,
@@ -161,7 +178,7 @@ export function applyNeedsChanges(
             dailyFrequency: change.dailyFrequency,
             periodDays: change.periodDays,
           } : {}),
-          ...(unitChanged ? {
+          ...(unitChanged && !(change.userProvidedUnitPrice != null && change.userProvidedUnitPrice > 0) ? {
             priceSource: recommendation.priceSource,
             priceSampleCount: recommendation.priceSampleCount,
             priceRangeMinimum: recommendation.priceRangeMinimum,
@@ -175,28 +192,43 @@ export function applyNeedsChanges(
           category: `${change.category} · ${change.unit}`,
           quantity: Math.max(1, Math.floor(change.quantity)),
           priority: change.priority,
-          unitPrice: change.userProvidedUnitPrice ?? current.unitPrice,
-          priceSource: 'manual',
-          priceSampleCount: 0,
+          unitPrice: change.userProvidedUnitPrice != null && change.userProvidedUnitPrice > 0
+            ? change.userProvidedUnitPrice
+            : current.unitPrice,
+          priceSource: change.userProvidedUnitPrice != null && change.userProvidedUnitPrice > 0
+            ? 'manual'
+            : current.priceSource ?? (current.unitPrice > 0 ? 'catalogue' : 'unpriced'),
+          ...(change.userProvidedUnitPrice != null && change.userProvidedUnitPrice > 0 ? {
+            priceSampleCount: 0,
+            priceRangeMinimum: undefined,
+            priceRangeMaximum: undefined,
+          } : {}),
           dailyFrequency: change.dailyFrequency ?? undefined,
           periodDays: change.periodDays ?? undefined,
-          priceRangeMinimum: undefined,
-          priceRangeMaximum: undefined,
         }
       }
       continue
     }
 
+    const hasUserPrice = change.userProvidedUnitPrice != null && change.userProvidedUnitPrice > 0
+    const hasAiEstimate = !hasUserPrice && change.estimatedUnitPrice != null && change.estimatedUnitPrice > 0
+      && recommendation?.priceSource !== 'personal-history'
     const newItem = recommendation
       ? {
           ...recommendation,
           priority: change.priority,
-          ...(change.userProvidedUnitPrice != null ? {
-            unitPrice: change.userProvidedUnitPrice,
+          ...(hasUserPrice ? {
+            unitPrice: change.userProvidedUnitPrice!,
             priceSource: 'manual' as const,
             priceSampleCount: 0,
             priceRangeMinimum: undefined,
             priceRangeMaximum: undefined,
+          } : hasAiEstimate ? {
+            unitPrice: change.estimatedUnitPrice!,
+            priceSource: 'ai-estimate' as const,
+            priceSampleCount: 0,
+            priceRangeMinimum: change.estimatedPriceMin ?? undefined,
+            priceRangeMaximum: change.estimatedPriceMax ?? undefined,
           } : {}),
           ...(change.dailyFrequency && change.periodDays ? {
             dailyFrequency: change.dailyFrequency,
@@ -214,10 +246,22 @@ export function applyNeedsChanges(
       next[existingIndex] = {
         ...existing,
         quantity: Math.min(10000, Math.max(1, existing.quantity) + newItem.quantity),
-        // An explicitly stated price is a deliberate update; otherwise keep the existing price.
+        // User-provided prices replace prior estimates; otherwise preserve an existing nonzero price.
         unitPrice: newItem.priceSource === 'manual' && newItem.unitPrice > 0
           ? newItem.unitPrice
-          : existing.unitPrice,
+          : existing.unitPrice > 0
+            ? existing.unitPrice
+            : newItem.unitPrice,
+        ...(newItem.priceSource === 'manual' && newItem.unitPrice > 0
+          ? { priceSource: 'manual' as const, priceSampleCount: 0, priceRangeMinimum: undefined, priceRangeMaximum: undefined }
+          : existing.unitPrice <= 0
+            ? {
+                priceSource: newItem.priceSource,
+                priceSampleCount: newItem.priceSampleCount,
+                priceRangeMinimum: newItem.priceRangeMinimum,
+                priceRangeMaximum: newItem.priceRangeMaximum,
+              }
+            : {}),
         priority: existing.priority ?? newItem.priority,
         ...(sameRecurrencePeriod && existing.dailyFrequency && newItem.dailyFrequency
           ? { dailyFrequency: Math.min(24, existing.dailyFrequency + newItem.dailyFrequency), periodDays: existing.periodDays }
