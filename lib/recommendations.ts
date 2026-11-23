@@ -523,6 +523,83 @@ export function generateRecommendations({ description, period, templateType, pri
   return { items, contexts, matchedKeywords: [...matchedKeywords], usedFallback }
 }
 
+
+export type CatalogRecommendationInput = {
+  itemKey: string
+  period: Period
+  quantity: number
+  unit?: string | null
+  priceHistory?: PriceObservation[]
+  now?: number
+}
+
+/** Builds one validated catalog item without invoking the broad keyword generator. */
+export function createCatalogRecommendation({
+  itemKey,
+  period,
+  quantity,
+  unit,
+  priceHistory = [],
+  now = Date.now(),
+}: CatalogRecommendationInput): Recommendation | null {
+  const def = ITEMS[itemKey]
+  if (!def) return null
+
+  const requestedUnit = unit?.trim().toLocaleLowerCase('id')
+  const variant = requestedUnit
+    ? def.variants?.find((candidate) =>
+        candidate.unit.toLocaleLowerCase('id') === requestedUnit
+        || (candidate.unitAliases ?? []).some((alias) => alias.toLocaleLowerCase('id') === requestedUnit),
+      )
+    : undefined
+
+  const matchesBaseUnit = !requestedUnit
+    || def.unit.toLocaleLowerCase('id') === requestedUnit
+    || (def.unitAliases ?? []).some((alias) => alias.toLocaleLowerCase('id') === requestedUnit)
+  if (requestedUnit && !variant && !matchesBaseUnit) return null
+  const resolvedUnit = variant?.unit ?? def.unit
+  const cataloguePrice = variant?.unitPrice
+    ?? (period === 'daily' && def.dailyUnitPrice ? def.dailyUnitPrice : def.unitPrice)
+  const category = `${def.category} · ${resolvedUnit}`
+  const personalPrice = estimatePersonalUnitPrice(def.name, category, priceHistory, now)
+
+  return {
+    id: `rec-${now}-${Math.random().toString(36).slice(2, 8)}`,
+    itemKey,
+    name: def.name,
+    category,
+    unit: resolvedUnit,
+    quantity: Math.max(1, Math.min(10000, Math.floor(Number(quantity) || 1))),
+    unitPrice: personalPrice?.median ?? cataloguePrice,
+    actualPrice: null,
+    isPurchased: false,
+    priority: def.priority,
+    priceSource: personalPrice ? 'personal-history' : 'catalogue',
+    priceSampleCount: personalPrice?.sampleCount ?? 0,
+    ...(personalPrice ? {
+      priceRangeMinimum: personalPrice.minimum,
+      priceRangeMaximum: personalPrice.maximum,
+    } : {}),
+    reason: 'dipahami dari instruksi AI EstiMate',
+  }
+}
+
+/** Safe, compact catalogue context for the model. Actual prices are never supplied by the model. */
+export function getRecommendationCatalog() {
+  return Object.entries(ITEMS).map(([itemKey, def]) => ({
+    itemKey,
+    name: def.name,
+    category: def.category,
+    unit: def.unit,
+    unitAliases: def.unitAliases ?? [],
+    variants: (def.variants ?? []).map((variant) => ({
+      unit: variant.unit,
+      unitAliases: variant.unitAliases ?? [],
+    })),
+    priority: def.priority,
+  }))
+}
+
 export const itemTotal = (item: Pick<Material, 'quantity' | 'unitPrice'>) => Math.max(0, item.unitPrice || 0) * Math.max(1, item.quantity || 1)
 
 export type BudgetSuggestion = { id: string; kind: 'remove' | 'reduce'; name: string; saving: number; newQuantity?: number }

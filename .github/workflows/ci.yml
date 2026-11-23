@@ -35,3 +35,6 @@ jobs:
 
       - name: Test AI recommendations
         run: pnpm test:recommendations
+
+      - name: Test incremental needs merge
+        run: pnpm test:needs-merge
