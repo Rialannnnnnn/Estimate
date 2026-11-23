@@ -26,6 +26,12 @@ The Gemini 3.6 Flash Free tier currently lists free input/output tokens, but pro
 
 Google's Free tier terms say submitted content may be used to improve Google products. EstiMate therefore does not send actual purchase prices or personal price-history records to Gemini, but it does send the user's prompt, conversation context, item names, categories, quantities, and planning budget so the model can reason about the plan. Do not use the Free tier for sensitive financial notes.
 
+## AI price estimates
+
+For new items and existing unpriced items, Gemini can suggest an average unit-price estimate plus a minimum–maximum range in Indonesian rupiah. EstiMate writes the estimate directly into the editable unit-price field and labels it as an AI estimate. These are general estimates, not live store quotes or verified market prices. The user can change an estimate at any time.
+
+Personal purchase history remains private from Gemini. When at least three recent exact matches exist for the same item and category/unit, EstiMate uses the personal median instead of an AI estimate. An explicitly supplied unit price takes priority. Estimated prices never populate the actual purchase-price field and do not mark an item as purchased.
+
 ## Local development
 
 Copy `.env.example` to `.env.local`, then replace the placeholder with your key. Keep `.env.local` out of Git.
