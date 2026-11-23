@@ -41,6 +41,10 @@ export function MaterialItem({ material, index = 0, onUpdate, onDelete }: Materi
     const trimmedValue = actualPriceInput.trim()
     const parsed = trimmedValue ? parseCurrencyInput(trimmedValue) : null
 
+    // Avoid refreshing the observation date on a blur with no change.
+    // Legacy values with no timestamp get one the first time they are confirmed.
+    if (parsed === (material.actualPrice ?? null) && material.actualPriceRecordedAt) return
+
     onUpdate({ actualPrice: parsed })
   }
 

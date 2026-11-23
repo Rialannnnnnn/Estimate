@@ -45,6 +45,7 @@ interface Material {
   quantity: number
   unit_price: number
   actual_price: number | null
+  actual_price_recorded_at?: string | null
   category: string
   is_purchased: boolean
 }
@@ -280,6 +281,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   }
 
   const calculationMaterials = materials.map((material) => ({
+    name: material.name,
+    category: material.category,
     unitPrice: Number(material.unit_price) || 0,
     actualPrice: material.actual_price == null ? null : Number(material.actual_price),
     quantity: Number(material.quantity) || 0,
@@ -499,16 +502,30 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                     quantity: material.quantity,
                     unitPrice: material.unit_price,
                     actualPrice: material.actual_price ?? null,
+                    actualPriceRecordedAt: material.actual_price_recorded_at ?? null,
                     isPurchased: material.is_purchased,
                     category: material.category,
                   }}
                   onUpdate={(updates) => {
                     const dbUpdates: Partial<Material> = {}
-                    if (updates.name !== undefined) dbUpdates.name = updates.name
-                    if (updates.category !== undefined) dbUpdates.category = updates.category
+                    if (updates.name !== undefined) {
+                      dbUpdates.name = updates.name
+                      // A renamed item is no longer an observation for the old item name.
+                      dbUpdates.actual_price_recorded_at = null
+                    }
+                    if (updates.category !== undefined) {
+                      dbUpdates.category = updates.category
+                      // A changed category/unit must not reuse the previous history bucket.
+                      dbUpdates.actual_price_recorded_at = null
+                    }
                     if (updates.quantity !== undefined) dbUpdates.quantity = updates.quantity
                     if (updates.unitPrice !== undefined) dbUpdates.unit_price = updates.unitPrice
-                    if ('actualPrice' in updates) dbUpdates.actual_price = updates.actualPrice ?? null
+                    if ('actualPrice' in updates) {
+                      dbUpdates.actual_price = updates.actualPrice ?? null
+                      dbUpdates.actual_price_recorded_at = updates.actualPrice == null
+                        ? null
+                        : new Date().toISOString()
+                    }
                     if (updates.isPurchased !== undefined) dbUpdates.is_purchased = updates.isPurchased
                     void handleUpdateMaterial(material.id, dbUpdates)
                   }}

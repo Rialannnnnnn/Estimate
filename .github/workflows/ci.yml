@@ -2,9 +2,9 @@ name: EstiMate checks
 
 on:
   pull_request:
-    branches: [main]
-  push:
     branches: [main, "fix/**"]
+  push:
+    branches: [main, "fix/**", "feat/**"]
 
 jobs:
   unit-tests:
@@ -26,6 +26,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: TypeScript type check
+        run: pnpm exec tsc --noEmit
 
       - name: Test budget calculations
         run: pnpm test:budget
