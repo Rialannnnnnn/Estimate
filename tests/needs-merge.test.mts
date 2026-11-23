@@ -161,6 +161,28 @@ test('explicit user price overrides the AI estimate', () => {
   assert.equal(result[0].priceRangeMinimum, undefined)
 })
 
+test('custom item uses personal purchase history before the AI estimate', () => {
+  const custom: NeedsGenerationChange = {
+    action: 'add', itemKey: 'custom', targetItemId: null,
+    name: 'Gunting', category: 'Alat & Bahan', unit: 'pcs',
+    quantity: 1, priority: 'essential',
+    estimatedUnitPrice: 10000, estimatedPriceMin: 8000, estimatedPriceMax: 15000,
+  }
+  const result = applyNeedsChanges([], [custom], {
+    period: 'monthly', now,
+    priceHistory: [
+      { name: 'Gunting', category: 'Alat & Bahan · pcs', actualPrice: 9000, recordedAt: '2026-10-01T00:00:00.000Z' },
+      { name: 'Gunting', category: 'Alat & Bahan · pcs', actualPrice: 10000, recordedAt: '2026-10-02T00:00:00.000Z' },
+      { name: 'Gunting', category: 'Alat & Bahan · pcs', actualPrice: 11000, recordedAt: '2026-10-03T00:00:00.000Z' },
+    ],
+  })
+  assert.equal(result[0].unitPrice, 10000)
+  assert.equal(result[0].priceSource, 'personal-history')
+  assert.equal(result[0].priceSampleCount, 3)
+  assert.equal(result[0].priceRangeMinimum, 9000)
+  assert.equal(result[0].priceRangeMaximum, 11000)
+})
+
 test('catalog item uses AI estimate when personal history is unavailable', () => {
   const result = applyNeedsChanges([], [{
     ...addEggs, estimatedUnitPrice: 35000,
