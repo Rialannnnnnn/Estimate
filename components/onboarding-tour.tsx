@@ -20,7 +20,7 @@ const dashboardSteps: Step[] = [
 const projectSteps: Step[] = [
   { title: 'Status anggaran', description: 'Lihat apakah budget masih aman atau terlampaui.', target: 'budget-indicator', action: 'Lihat status', advanceOn: 'budget-indicator' },
   { title: 'Ringkasan pengeluaran', description: 'Estimasi adalah perkiraan, realisasi adalah biaya aktual, dan dibeli adalah jumlah item yang sudah dibeli.', target: 'project-stats', action: 'Lihat ringkasan', advanceOn: 'project-stats' },
-  { title: 'Diagram pengeluaran', description: 'Bandingkan pembagian biaya estimasi dan realisasi.', target: 'expense-chart', action: 'Lihat diagram', advanceOn: 'expense-chart' },
+  { title: 'Diagram pengeluaran', description: 'Bandingkan pembagian biaya estimasi dan realisasi.', target: 'expense-chart', action: 'Lanjut' },
   { title: 'Daftar kebutuhan', description: 'Ubah item, tandai dibeli, atau isi harga aktual. Panduan selesai!', target: 'materials-list', action: 'Selesai', advanceOn: 'materials-list' },
 ]
 
