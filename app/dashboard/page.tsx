@@ -245,7 +245,7 @@ export default function DashboardPage() {
             </Button>
           </div>
         ) : (
-          <div data-tour="budget-fields" className="border border-soft-blue bg-card p-6 md:p-8 mb-8 rounded-3xl shadow-[0_1px_2px_rgba(23,63,95,.04),0_12px_36px_rgba(23,63,95,.08)]">
+          <div className="border border-soft-blue bg-card p-6 md:p-8 mb-8 rounded-3xl shadow-[0_1px_2px_rgba(23,63,95,.04),0_12px_36px_rgba(23,63,95,.08)]">
             <div className="mb-6">
               <p className="text-label font-bold text-primary mb-2">MULAI DARI KONTEKSMU</p>
               <h2 className="text-2xl font-semibold text-foreground">Apa yang perlu kamu siapkan?</h2>
@@ -280,6 +280,7 @@ export default function DashboardPage() {
                   <option value="monthly">Bulanan</option>
                 </select>
               </div>
+              <div data-tour="budget-inputs" className="grid gap-4 md:col-span-2 md:grid-cols-2">
               <div>
                 <label htmlFor="budget-limit" className="text-label block mb-2">Batas budget kamu (opsional)</label>
                 <Input id="budget-limit" type="text" inputMode="numeric" value={budgetLimit} onChange={(e) => setBudgetLimit(formatCurrencyInput(e.target.value))} placeholder={planningPeriod === 'daily' ? 'Contoh: 75.000' : 'Contoh: 2.500.000'} className="h-12 rounded-xl border border-border bg-background text-foreground" />
@@ -296,8 +297,10 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <div className="flex gap-3">
+              </div>
+              <div className="flex flex-wrap gap-3 md:col-span-3">
                 <Button
+                  data-tour="create-budget"
                   onClick={() => void handleCreateProject()}
                   disabled={!selectedTemplate || !projectName.trim() || creatingProject}
                   className="flex-1 px-6 py-3 bg-primary text-primary-foreground border border-primary font-bold hover:bg-primary/90 disabled:opacity-50 rounded-full"
@@ -365,7 +368,7 @@ export default function DashboardPage() {
               <p className="text-muted-foreground text-lg">Tidak ada rencana yang cocok dengan pencarianmu.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div data-tour="project-card" className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {filteredProjects.map((project) => (
                 <ProjectCard
                   key={project.id}
