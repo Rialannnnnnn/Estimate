@@ -11,7 +11,7 @@ const dashboardSteps: Step[] = [
   { title: 'Selamat datang di EstiMate! 👋', description: 'Senang kamu bergabung! Di sini kita akan membuat rencana budget pertamamu. Tenang, kamu bisa langsung mencoba setiap bagian—panduan ini tidak mengunci layar.', target: null, action: 'Ayo mulai!', center: true },
   { title: 'Mulai dari sini', description: 'Tekan tombol “Rencana Budget Baru”. Lihat efek cahaya di sekeliling tombol? Itu tanda bagian yang perlu kamu coba.', target: 'new-budget', action: 'Sudah dibuka' },
   { title: 'Pilih kebutuhan yang paling cocok', description: 'Ada beberapa pilihan dari Kebutuhan Harian Dasar sampai Target Menabung. Pilih salah satu saja. Semua kotak akan disorot agar kamu bisa melihat pilihannya.', target: 'template-card', action: 'Sudah memilih' },
-  { title: 'Tentukan batas dan nama rencanamu', description: 'Isi dua bagian penting ini: BATAS BUDGET KAMU dan NAMA RENCANA BUDGET. Batas budget adalah batas pengeluaran yang ingin kamu jaga, sedangkan nama membantu membedakan rencana.', target: 'budget-fields', action: 'Sudah diisi' },
+  { title: 'Tentukan batas dan nama rencanamu', description: 'Isi dua bagian penting ini: BATAS BUDGET KAMU dan NAMA RENCANA BUDGET. Batas budget adalah batas pengeluaran yang ingin kamu jaga, sedangkan nama membantu membedakan rencana. Setelah itu, tekan tombol “Buat Rencana” pada formulir (bukan tombol panduan) untuk membuka ruang AI.', target: 'budget-fields', action: 'Lanjut ke AI' },
   { title: 'Kenalan dengan AI EstiMate ✨', description: 'Setelah menekan Buat Rencana, kamu akan masuk ke ruang ngobrol dengan AI. Ceritakan kebutuhanmu dengan bahasa sehari-hari—misalnya “aku anak kos, butuh budget makan dan transportasi selama sebulan”. AI membantu menyusun daftar kebutuhan dan estimasi awal berdasarkan konteksmu.', target: 'ai-generator', action: 'Mengerti, lanjut' },
   { title: 'Daftar kebutuhan bisa kamu atur sendiri', description: 'Hasil AI bukan aturan yang kaku. Kamu bisa mengubah nama barang, jumlah, kategori, dan harga; menghapus item yang tidak perlu; atau menambahkan kebutuhan secara manual sebelum menyimpan rencana.', target: 'ai-generator', action: 'Lanjut' },
   { title: 'Rencana pertamamu sudah tersimpan 🎉', description: 'Sekarang lihat kartu proyek yang baru dibuat di bagian Rencana Budgetmu. Klik kartu tersebut untuk membuka detail rencanamu.', target: 'project-card', action: 'Sudah membuka proyek' },
@@ -36,6 +36,7 @@ export function OnboardingTour({ open, onClose }: Props) {
   const isProjectPage = pathname.startsWith('/dashboard/project/')
   const steps = isProjectPage ? projectSteps : dashboardSteps
   const [stepIndex, setStepIndex] = useState(0)
+  useEffect(() => { setStepIndex(0) }, [isProjectPage])
   const [rects, setRects] = useState<DOMRect[]>([])
   const [cardPosition, setCardPosition] = useState<{ top: number; left: number } | null>(null)
   const current = steps[Math.min(stepIndex, steps.length - 1)]
