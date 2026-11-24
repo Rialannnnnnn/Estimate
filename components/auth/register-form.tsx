@@ -63,6 +63,7 @@ export function RegisterForm() {
           process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? `${window.location.origin}/auth/callback`,
         data: {
           full_name: trimmedName,
+          onboarding_completed: false,
         },
       },
     })
