@@ -272,7 +272,7 @@ export default function DashboardPage() {
               setPlanningPeriod(type === 'harian-dasar' ? 'daily' : 'monthly')
             }} />}
 
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <div data-tour="budget-inputs" className="mt-8 grid gap-4 md:grid-cols-3">
               <div>
                 <label className="text-label block mb-2">Periode kebutuhan</label>
                 <select value={planningPeriod} onChange={(e) => setPlanningPeriod(e.target.value as 'daily' | 'monthly')} className="h-12 w-full rounded-xl border border-border bg-background px-4 text-sm text-foreground">
@@ -280,7 +280,7 @@ export default function DashboardPage() {
                   <option value="monthly">Bulanan</option>
                 </select>
               </div>
-              <div data-tour="budget-inputs" className="grid gap-4 md:col-span-2 md:grid-cols-2">
+              <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
               <div>
                 <label htmlFor="budget-limit" className="text-label block mb-2">Batas budget kamu (opsional)</label>
                 <Input id="budget-limit" type="text" inputMode="numeric" value={budgetLimit} onChange={(e) => setBudgetLimit(formatCurrencyInput(e.target.value))} placeholder={planningPeriod === 'daily' ? 'Contoh: 75.000' : 'Contoh: 2.500.000'} className="h-12 rounded-xl border border-border bg-background text-foreground" />
