@@ -383,17 +383,19 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             </div>
           </div>
 
+          <div data-tour="budget-indicator">
           <BudgetIndicator
             currentTotal={projectedTotal}
             budgetLimit={project.budget}
             status={budgetStatus}
             className="mb-8"
           />
+          </div>
 
           <p className="mb-5 text-xs text-white/85">Harga item adalah estimasi yang dapat berbeda menurut tempat dan waktu pembelian, bukan data pasar real-time. Dana rencana adalah batas anggaran pilihanmu, bukan jumlah yang wajib dihabiskan.</p>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+          <div data-tour="project-stats" className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
             {[
               { label: 'ESTIMASI', value: formatCurrency(estimatedTotal) },
               { label: 'REALISASI', value: formatCurrency(actualTotal) },
@@ -412,7 +414,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
         {/* Expense Chart */}
         {materials.length > 0 && (
-          <div className="mb-10 rounded-2xl border border-soft-blue bg-card p-4 text-ink shadow-[0_8px_24px_rgba(15,46,71,0.16)] sm:p-6 md:mb-12 md:p-8">
+          <div data-tour="expense-chart" className="mb-10 rounded-2xl border border-soft-blue bg-card p-4 text-ink shadow-[0_8px_24px_rgba(15,46,71,0.16)] sm:p-6 md:mb-12 md:p-8">
             <ExpenseChart materials={materials.map(m => ({
               name: m.name,
               quantity: m.quantity,
@@ -425,7 +427,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         )}
 
         {/* Materials Section */}
-        <div className="mb-12">
+        <div data-tour="materials-list" className="mb-12">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
             <h2 className="text-display text-xl sm:text-2xl">DAFTAR KEBUTUHAN</h2>
             <Button
