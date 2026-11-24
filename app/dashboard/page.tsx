@@ -237,7 +237,7 @@ export default function DashboardPage() {
         {!showNewProject ? (
           <div className="mb-8">
             <Button
-              data-tour="new-budget"
+              data-tour="new-budget" data-tour-action="new-budget"
               onClick={() => setShowNewProject(true)}
               className="w-full md:w-auto px-8 py-4 bg-primary text-primary-foreground border border-primary font-bold text-lg rounded-full shadow-[0_6px_18px_rgba(23,63,95,.18)] transition-all duration-200 hover:bg-brand-main hover:border-brand-main hover:shadow-[0_10px_26px_rgba(23,63,95,.24)] motion-safe:hover:-translate-y-0.5"
             >
@@ -300,7 +300,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex flex-wrap gap-3 md:col-span-3">
                 <Button
-                  data-tour="create-budget"
+                  data-tour="create-budget" data-tour-action="create-budget"
                   onClick={() => void handleCreateProject()}
                   disabled={!selectedTemplate || !projectName.trim() || creatingProject}
                   className="flex-1 px-6 py-3 bg-primary text-primary-foreground border border-primary font-bold hover:bg-primary/90 disabled:opacity-50 rounded-full"
