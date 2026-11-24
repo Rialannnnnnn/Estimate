@@ -105,18 +105,6 @@ export function OnboardingTour({ open, onClose }: Props) {
     }
   }, [open, current, updateTargets])
 
-  if (!open) return null
-
-  const finish = () => {
-    setStepIndex(0)
-    onClose()
-  }
-  const next = () => {
-    if (stepIndex >= steps.length - 1) finish()
-    else setStepIndex((value) => value + 1)
-  }
-  const back = () => setStepIndex((value) => Math.max(0, value - 1))
-
   useEffect(() => {
     if (!open || !current?.advanceOn) return
     const selector = current.advanceOn
@@ -129,6 +117,18 @@ export function OnboardingTour({ open, onClose }: Props) {
     document.addEventListener('click', handleAction)
     return () => document.removeEventListener('click', handleAction)
   }, [open, current, steps.length])
+
+  if (!open) return null
+
+  const finish = () => {
+    setStepIndex(0)
+    onClose()
+  }
+  const next = () => {
+    if (stepIndex >= steps.length - 1) finish()
+    else setStepIndex((value) => value + 1)
+  }
+  const back = () => setStepIndex((value) => Math.max(0, value - 1))
 
   const isWelcome = current.center
   const cardStyle = isWelcome
