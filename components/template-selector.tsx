@@ -17,11 +17,10 @@ export function TemplateSelector({ selected, onSelect }: TemplateSelectorProps) 
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-px bg-border/50">
+      <div data-tour="template-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-px bg-border/50">
         {templateList.map((template, index) => (
           <div
             key={template.type}
-            data-tour="template-card"
             className={cn(
               'cursor-pointer transition-all p-6 bg-card border-2 hover:border-primary group',
               selected === template.type
