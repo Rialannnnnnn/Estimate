@@ -21,6 +21,7 @@ export function TemplateSelector({ selected, onSelect }: TemplateSelectorProps) 
         {templateList.map((template, index) => (
           <div
             key={template.type}
+            data-tour="template-card"
             className={cn(
               'cursor-pointer transition-all p-6 bg-card border-2 hover:border-primary group',
               selected === template.type
