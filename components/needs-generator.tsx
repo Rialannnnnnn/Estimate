@@ -285,7 +285,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
         </div>
       )}
       <Textarea value={criteria} onChange={(event) => setCriteria(event.target.value)} aria-label="Instruksi untuk AI EstiMate" placeholder="Ceritakan semua rencanamu di sini. Contoh: aku makan 3 kali sehari, sekali makan Rp25 ribu. Aku juga mau bikin kursi, apa saja bahannya? Lalu tambahkan telur 2 kg." className="min-h-28 rounded-2xl border border-border bg-background p-4 text-sm leading-relaxed" />
-      <div className="mt-4 flex flex-wrap gap-3"><Button onClick={() => void runGenerate()} disabled={isGenerating || !criteria.trim()} className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"><Send className="mr-2 h-4 w-4" /> {isGenerating ? 'AI sedang memahami...' : 'Kirim ke AI EstiMate'}</Button><Button variant="ghost" onClick={onBack} className="rounded-full">Kembali ubah rencana</Button></div>
+      <div className="mt-4 flex flex-wrap gap-3"><Button data-tour-action="ai-send" onClick={() => void runGenerate()} disabled={isGenerating || !criteria.trim()} className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"><Send className="mr-2 h-4 w-4" /> {isGenerating ? 'AI sedang memahami...' : 'Kirim ke AI EstiMate'}</Button><Button variant="ghost" onClick={onBack} className="rounded-full">Kembali ubah rencana</Button></div>
       {assistantMessage && <div className="mt-4 rounded-2xl border border-border bg-secondary px-4 py-3 text-sm leading-relaxed" role="status"><span className="mb-1 block text-xs font-semibold text-primary">AI ESTIMATE</span>{assistantMessage}{assistantActionUrl && <a href={assistantActionUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90">Buka Google AI Studio untuk membuat API key <span aria-hidden="true" className="ml-2">↗</span></a>}</div>}
 
       {priceHistoryNotice && <p className="mt-3 rounded-xl border border-border bg-secondary px-3 py-2 text-xs leading-relaxed text-muted-foreground" role="status">{priceHistoryNotice}</p>}
@@ -361,7 +361,7 @@ export function NeedsGenerator({ period, templateType, budgetLimit, isExampleBud
           </div>
         )}
 
-        <div><Button onClick={() => onConfirm(items)} disabled={!items.length} className="mt-6 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"><Check className="mr-2 h-4 w-4" /> Simpan kebutuhan & buka rencana <ArrowRight className="ml-2 h-4 w-4" /></Button></div>
+        <div><Button data-tour-action="ai-confirm" onClick={() => onConfirm(items)} disabled={!items.length} className="mt-6 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"><Check className="mr-2 h-4 w-4" /> Simpan kebutuhan & buka rencana <ArrowRight className="ml-2 h-4 w-4" /></Button></div>
       </div>}
     </section>
   )
