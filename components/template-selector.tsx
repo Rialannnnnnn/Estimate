@@ -27,6 +27,7 @@ export function TemplateSelector({ selected, onSelect }: TemplateSelectorProps) 
                 ? 'border-primary bg-primary/10'
                 : 'border-border/50'
             )}
+            data-tour-action="template-option"
             onClick={() => onSelect(template.type)}
           >
             <div className="flex items-start justify-between mb-3">
