@@ -237,6 +237,7 @@ export default function DashboardPage() {
         {!showNewProject ? (
           <div className="mb-8">
             <Button
+              data-tour="new-budget"
               onClick={() => setShowNewProject(true)}
               className="w-full md:w-auto px-8 py-4 bg-primary text-primary-foreground border border-primary font-bold text-lg rounded-full shadow-[0_6px_18px_rgba(23,63,95,.18)] transition-all duration-200 hover:bg-brand-main hover:border-brand-main hover:shadow-[0_10px_26px_rgba(23,63,95,.24)] motion-safe:hover:-translate-y-0.5"
             >
@@ -244,13 +245,13 @@ export default function DashboardPage() {
             </Button>
           </div>
         ) : (
-          <div className="border border-soft-blue bg-card p-6 md:p-8 mb-8 rounded-3xl shadow-[0_1px_2px_rgba(23,63,95,.04),0_12px_36px_rgba(23,63,95,.08)]">
+          <div data-tour="budget-fields" className="border border-soft-blue bg-card p-6 md:p-8 mb-8 rounded-3xl shadow-[0_1px_2px_rgba(23,63,95,.04),0_12px_36px_rgba(23,63,95,.08)]">
             <div className="mb-6">
               <p className="text-label font-bold text-primary mb-2">MULAI DARI KONTEKSMU</p>
               <h2 className="text-2xl font-semibold text-foreground">Apa yang perlu kamu siapkan?</h2>
               <p className="text-sm text-muted-foreground mt-2">Pilih pola kebutuhan sebagai titik awal. Nominal pada template hanya contoh anggaran awal, bukan jumlah yang wajib dihabiskan. Semua item, jumlah, dan harga bisa kamu ubah.</p>
             </div>
-            <div className={showNeedsGenerator ? '' : 'hidden'}>
+            <div data-tour="ai-generator" className={showNeedsGenerator ? '' : 'hidden'}>
               <NeedsGenerator
                 period={planningPeriod}
                 templateType={selectedTemplate}
