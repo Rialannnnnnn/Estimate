@@ -368,8 +368,8 @@ export default function DashboardPage() {
               <p className="text-muted-foreground text-lg">Tidak ada rencana yang cocok dengan pencarianmu.</p>
             </div>
           ) : (
-            <div data-tour="project-card" className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {filteredProjects.map((project) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {filteredProjects.map((project, index) => (
                 <ProjectCard
                   key={project.id}
                   id={project.id}
@@ -378,6 +378,7 @@ export default function DashboardPage() {
                   budget={project.budget}
                   spent={project.spent}
                   onDelete={() => handleDeleteProject(project.id)}
+                  isTourTarget={index === 0}
                 />
               ))}
             </div>
