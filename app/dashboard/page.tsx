@@ -139,7 +139,7 @@ export default function DashboardPage() {
     setGeneratedNeeds([])
     setShowNewProject(false)
         await fetchProjects(user.id)
-        router.push(`/dashboard/project/${projectId}`)
+        router.push('/dashboard')
       }
     } catch (err) {
       console.error('Error creating project:', err)
