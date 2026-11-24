@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, ArrowRight, BookOpen, Check, X, Sparkles } from 'lucide-react'
@@ -60,7 +60,7 @@ export function OnboardingTour({ open, onClose }: Props) {
     const topEdge = Math.min(...nextRects.map((rect) => rect.top))
     const bottomEdge = Math.max(...nextRects.map((rect) => rect.bottom))
     const width = 360
-    const height = 270
+    const height = 320
     const gap = 18
     let left = rightEdge + gap
     let top = topEdge
@@ -124,7 +124,7 @@ export function OnboardingTour({ open, onClose }: Props) {
     <div className="pointer-events-none fixed inset-0 z-[100]">
       <style>{`
         @keyframes tour-glow { 0%,100% { box-shadow: 0 0 0 3px rgba(14,165,233,.22), 0 0 12px 4px rgba(14,165,233,.35); } 50% { box-shadow: 0 0 0 7px rgba(14,165,233,.12), 0 0 28px 10px rgba(14,165,233,.55); } }
-        .tour-highlight { position: relative; z-index: 101; border-radius: 16px; outline: 3px solid #0ea5e9; outline-offset: 4px; animation: tour-glow 1.6s ease-in-out infinite; }
+        .tour-highlight { border-radius: 16px; outline: 3px solid #0ea5e9; outline-offset: 4px; animation: tour-glow 1.6s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) { .tour-highlight { animation: none; } }
       `}</style>
       {rects.map((rect, index) => (
@@ -133,7 +133,7 @@ export function OnboardingTour({ open, onClose }: Props) {
       ))}
 
       <section role="dialog" aria-modal="false" aria-labelledby="onboarding-title"
-        className={`pointer-events-auto fixed w-[min(360px,calc(100vw-32px))] rounded-3xl border border-sky-200 bg-white/95 p-5 text-slate-900 shadow-[0_18px_60px_rgba(15,23,42,.24)] backdrop-blur-md transition-all duration-300 ${isWelcome ? 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2' : ''}`}
+        className={`pointer-events-auto fixed w-[min(360px,calc(100vw-32px))] max-h-[calc(100vh-32px)] overflow-y-auto rounded-3xl border border-sky-200 bg-white/95 p-5 text-slate-900 shadow-[0_18px_60px_rgba(15,23,42,.24)] backdrop-blur-md transition-all duration-300 ${isWelcome ? 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2' : ''}`}
         style={cardStyle}>
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-semibold text-sky-800">
