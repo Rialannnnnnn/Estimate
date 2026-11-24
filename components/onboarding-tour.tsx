@@ -5,24 +5,23 @@ import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, ArrowRight, BookOpen, Check, X } from 'lucide-react'
 
-type Step = { title: string; description: string; target: string | null; action: string; center?: boolean }
+type Step = { title: string; description: string; target: string | null; action: string; center?: boolean; advanceOn?: string }
 
 const dashboardSteps: Step[] = [
   { title: 'Selamat datang di EstiMate!', description: 'Yuk, buat rencana budget pertamamu.', target: null, action: 'Mulai' , center: true },
-  { title: 'Buat rencana baru', description: 'Tekan tombol ini untuk memulai.', target: 'new-budget', action: 'Lanjut' },
-  { title: 'Pilih template', description: 'Pilih satu dari 10 template yang paling sesuai.', target: 'template-grid', action: 'Lanjut' },
-  { title: 'Isi batas budget dan nama rencana', description: 'Tentukan batas pengeluaran dan beri nama rencanamu.', target: 'budget-inputs', action: 'Lanjut' },
-  { title: 'Buka AI EstiMate', description: 'Tekan “Buat Rencana” untuk mulai menyusun kebutuhan bersama AI.', target: 'create-budget', action: 'Sudah dibuka' },
-  { title: 'Ceritakan kebutuhanmu', description: 'Ceritakan kebutuhanmu. AI akan membantu membuat daftar dan estimasi biaya.', target: 'ai-generator', action: 'Lanjut' },
-  { title: 'Atur hasil AI', description: 'Periksa hasilnya. Kamu bisa mengubah, menghapus, atau menambah item sendiri.', target: 'ai-generator', action: 'Lanjut' },
-  { title: 'Buka rencanamu', description: 'Setelah disimpan, pilih kartu proyek ini untuk melihat detailnya.', target: 'project-card', action: 'Buka proyek' },
+  { title: 'Buat rencana baru', description: 'Pilih tombol ini untuk mulai.', target: 'new-budget', action: 'Klik untuk lanjut', advanceOn: 'new-budget' },
+  { title: 'Pilih template', description: 'Pilih satu template yang paling sesuai.', target: 'template-grid', action: 'Pilih template', advanceOn: 'template-option' },
+  { title: 'Atur rencanamu', description: 'Isi batas budget dan nama rencana, lalu pilih Buat Rencana.', target: 'budget-inputs', action: 'Klik Buat Rencana', advanceOn: 'create-budget' },
+  { title: 'Ceritakan kebutuhanmu', description: 'Tulis kebutuhanmu, lalu kirim ke AI EstiMate.', target: 'ai-generator', action: 'Kirim ke AI', advanceOn: 'ai-send' },
+  { title: 'Periksa hasil AI', description: 'Cek dan sesuaikan daftar kebutuhan, lalu simpan.', target: 'ai-generator', action: 'Simpan kebutuhan', advanceOn: 'ai-confirm' },
+  { title: 'Buka rencanamu', description: 'Pilih kartu proyek untuk melihat ringkasannya.', target: 'project-card', action: 'Buka proyek', advanceOn: 'project-card' },
 ]
 
 const projectSteps: Step[] = [
-  { title: 'Status anggaran', description: 'Lihat apakah rencanamu masih aman atau melewati batas.', target: 'budget-indicator', action: 'Lanjut' },
-  { title: 'Ringkasan pengeluaran', description: 'Estimasi = perkiraan. Realisasi = biaya aktual. Dibeli = item yang sudah dibeli.', target: 'project-stats', action: 'Lanjut' },
-  { title: 'Diagram pengeluaran', description: 'Lihat pembagian biaya tiap kategori. Ganti Estimasi atau Realisasi untuk membandingkan.', target: 'expense-chart', action: 'Lanjut' },
-  { title: 'Daftar kebutuhan', description: 'Ubah item, tandai sudah dibeli, isi harga aktual, atau tambah kebutuhan baru.', target: 'materials-list', action: 'Selesai' },
+  { title: 'Status anggaran', description: 'Lihat apakah budget masih aman atau terlampaui.', target: 'budget-indicator', action: 'Lihat status', advanceOn: 'budget-indicator' },
+  { title: 'Ringkasan pengeluaran', description: 'Estimasi adalah perkiraan, realisasi adalah biaya aktual, dan dibeli adalah jumlah item yang sudah dibeli.', target: 'project-stats', action: 'Lihat ringkasan', advanceOn: 'project-stats' },
+  { title: 'Diagram pengeluaran', description: 'Bandingkan pembagian biaya estimasi dan realisasi.', target: 'expense-chart', action: 'Lihat diagram', advanceOn: 'expense-chart' },
+  { title: 'Daftar kebutuhan', description: 'Ubah item, tandai dibeli, atau isi harga aktual. Panduan selesai!', target: 'materials-list', action: 'Selesai', advanceOn: 'materials-list' },
 ]
 
 function findTargets(key: string | null): HTMLElement[] {
@@ -118,6 +117,19 @@ export function OnboardingTour({ open, onClose }: Props) {
   }
   const back = () => setStepIndex((value) => Math.max(0, value - 1))
 
+  useEffect(() => {
+    if (!open || !current?.advanceOn) return
+    const selector = current.advanceOn
+    const handleAction = (event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (!target.closest(`[data-tour-action="${selector}"], [data-tour="${selector}"]`)) return
+      window.setTimeout(() => setStepIndex((value) => Math.min(value + 1, steps.length - 1)), 120)
+    }
+    document.addEventListener('click', handleAction)
+    return () => document.removeEventListener('click', handleAction)
+  }, [open, current, steps.length])
+
   const isWelcome = current.center
   const cardStyle = isWelcome
     ? undefined
@@ -161,9 +173,9 @@ export function OnboardingTour({ open, onClose }: Props) {
           <Button variant="ghost" size="sm" onClick={finish} className="rounded-full px-2 text-xs text-slate-600">Tutup</Button>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
             {stepIndex > 0 && <Button variant="outline" size="sm" onClick={back} className="rounded-full px-3 text-xs"><ArrowLeft className="mr-1 h-3 w-3" /> Kembali</Button>}
-            <Button size="sm" onClick={next} className="rounded-full bg-[#173f5f] px-3 text-xs text-white hover:bg-[#102f49]">
+            {!current.advanceOn && <Button size="sm" onClick={next} className="rounded-full bg-[#173f5f] px-3 text-xs text-white hover:bg-[#102f49]">
               {stepIndex === steps.length - 1 ? <><Check className="mr-1 h-3.5 w-3.5" /> {current.action}</> : <>{current.action} <ArrowRight className="ml-1 h-3 w-3" /></>}
-            </Button>
+            </Button>}
           </div>
         </div>
       </section>
